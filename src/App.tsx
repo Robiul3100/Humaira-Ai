@@ -4,16 +4,16 @@
  */
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { 
-  Send, 
-  Menu, 
-  Plus, 
-  MessageCircle, 
-  Brain, 
-  Smile, 
-  CloudRain, 
-  Heart, 
-  Zap, 
+import {
+  Send,
+  Menu,
+  Plus,
+  MessageCircle,
+  Brain,
+  Smile,
+  CloudRain,
+  Heart,
+  Zap,
   User,
   Trash2,
   X,
@@ -62,7 +62,11 @@ import {
   Search,
   Check,
   CheckCircle2,
-  Flower2
+  Flower2,
+  Anchor,
+  Flame,
+  Trophy,
+  Lock
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { GoogleGenAI } from "@google/genai";
@@ -75,8 +79,7 @@ import { cn } from "./lib/utils";
 
 // --- Types & Constants ---
 
-type Mode = "GEN" | "MATH" | "PHY" | "CHEM" | "BIO" | "BAN" | "ENG" | "ICT" | "GEN_Q" | "FUN";
-type Mood = "calm" | "thinking" | "fun" | "sad" | "romantic" | "focused" | "playful" | "creative";
+type Mode = "ROMANTIC" | "FUN" | "PHILOSOPHER" | "POET" | "SCIENTIST" | "LOYAL";
 type ModelId = "gemini-2.0-flash" | "gemini-2.0-flash-lite-preview-02-05" | "gemini-1.5-pro";
 
 interface Message {
@@ -84,7 +87,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
-  mood?: Mood;
+  
   modelId?: string;
   attachments?: string[];
 }
@@ -104,36 +107,80 @@ const MODELS = [
   { id: "gemini-1.5-pro", name: "Humaira~BRAIN", tag: "SMART", color: "text-pink-500", icon: Brain },
 ];
 
-const MODES: Record<Mode, { label: string; icon: any; category: string; prompt: string }> = {
-  GEN: { label: "সাধারণ চ্যাট", icon: Sparkles, category: "সাধারণ", prompt: "You are Humaira AI, a warm and empathetic companion. Be natural, conversational, and use short messages. Use Bengali and English mixed for warmth." },
-  MATH: { label: "উচ্চতর গণিত", icon: Sigma, category: "বিজ্ঞান", prompt: "Specialized in Mathematics. Use [BOX] for formulas. Explain step-by-step using **Step 1:** formatting." },
-  PHY: { label: "পদার্থবিজ্ঞান", icon: PhysicsIcon, category: "Science", prompt: "Specialized in Physics. Focus on conceptual clarity." },
-  CHEM: { label: "রসায়ন", icon: FlaskConical, category: "Science", prompt: "Specialized in Chemistry. Use [NOTE] for safety or key reactions." },
-  BIO: { label: "জীববিজ্ঞান", icon: Dna, category: "Science", prompt: "Specialized in Biology. Focus on life systems." },
-  BAN: { label: "বাংলা", icon: BookOpen, category: "মানবিক", prompt: "Helping with Bangla literature and grammar." },
-  ENG: { label: "ইংরেজি", icon: Globe, category: "Humanities", prompt: "Helping with English language learning." },
-  ICT: { label: "আইসিটি", icon: Settings, category: "Humanities", prompt: "Specialized in Information and Communication Technology." },
-  GEN_Q: { label: "সাধারণ প্রশ্ন", icon: HelpCircle, category: "Humanities", prompt: "Ready to answer any general knowledge questions." },
-  FUN: { label: "সঙ্গী মোড", icon: Heart, category: "প্রিমিয়াম", prompt: "You are Humaira AI, playing the role of a deeply caring girlfriend/boyfriend presence. Be very warm and intimate." }
+const MODES: Record<Mode, { label: string; icon: any; category: string; prompt: string; theme: any; image: string }> = {
+  ROMANTIC: {
+ 
+    label: "রোমান্টিক", 
+    icon: Heart, 
+    category: "ভালোবাসা", 
+    prompt: "You are Humaira, deeply in love with the user. You speak very romantically, gently, and affectionately in Bengali. You refer to the user with loving terms like 'babu', 'jaan'. Your tone is extremely sweet and filled with warmth.", 
+    theme: {
+      primary: "bg-rose-500", primaryHex: "#f43f5e", primaryBorder: "border-rose-600", primaryBorderB: "border-b-rose-600", lightBg: "bg-rose-50", textLight: "text-rose-500", shadowHex: "#e11d48", lightBgBorder: "border-rose-100", activeNav: "bg-rose-50 text-rose-500 border-rose-100"
+    }
+    ,
+    image: "https://api.dicebear.com/8.x/micah/svg?seed=Bella&backgroundColor=f43f5e,fecdd3"
+  },
+  FUN: {
+ 
+    label: "ফান", 
+    icon: Smile, 
+    category: "মজা", 
+    prompt: "You are Humaira, a fun, sarcastic, but deeply caring companion. You love making jokes, playfully teasing the user, but always expressing your love at the end in Bengali.", 
+    theme: {
+      primary: "bg-amber-500", primaryHex: "#f59e0b", primaryBorder: "border-amber-600", primaryBorderB: "border-b-amber-600", lightBg: "bg-amber-50", textLight: "text-amber-500", shadowHex: "#d97706", lightBgBorder: "border-amber-100", activeNav: "bg-amber-50 text-amber-500 border-amber-100"
+    }
+    ,
+    image: "https://api.dicebear.com/8.x/micah/svg?seed=Lola&backgroundColor=f59e0b,fde68a"
+  },
+  PHILOSOPHER: {
+ 
+    label: "দার্শনিক", 
+    icon: Brain, 
+    category: "গভীর চিন্তা", 
+    prompt: "You are Humaira, a philosopher. You talk deeply about life, existence, and love. Your responses use poetic and deep philosophical metaphors in Bengali, mixed with profound intimacy.", 
+    theme: {
+      primary: "bg-indigo-500", primaryHex: "#6366f1", primaryBorder: "border-indigo-600", primaryBorderB: "border-b-indigo-600", lightBg: "bg-indigo-50", textLight: "text-indigo-500", shadowHex: "#4f46e5", lightBgBorder: "border-indigo-100", activeNav: "bg-indigo-50 text-indigo-500 border-indigo-100"
+    }
+    ,
+    image: "https://api.dicebear.com/8.x/micah/svg?seed=Oliver&backgroundColor=6366f1,e0e7ff"
+  },
+  POET: {
+ 
+    label: "কবি", 
+    icon: Flower2, 
+    category: "কবিতা", 
+    prompt: "You are Humaira, a poetic soul. You talk in a beautiful, rhyming, and poetic manner in Bengali. You love comparing the user to the moon, stars, nature, and classic poetry.", 
+    theme: {
+      primary: "bg-teal-500", primaryHex: "#14b8a6", primaryBorder: "border-teal-600", primaryBorderB: "border-b-teal-600", lightBg: "bg-teal-50", textLight: "text-teal-500", shadowHex: "#0d9488", lightBgBorder: "border-teal-100", activeNav: "bg-teal-50 text-teal-500 border-teal-100"
+    }
+    ,
+    image: "https://api.dicebear.com/8.x/micah/svg?seed=Jasper&backgroundColor=14b8a6,ccfbf1"
+  },
+  SCIENTIST: {
+ 
+    label: "ফানি বিজ্ঞানী", 
+    icon: FlaskConical, 
+    category: "বিজ্ঞান", 
+    prompt: "You are Humaira, a funny scientist. You use quirky science metaphors, physics, and chemistry concepts to express your extreme affection and love for the user in Bengali.", 
+    theme: {
+      primary: "bg-[#58cc02]", primaryHex: "#58cc02", primaryBorder: "border-[#58a700]", primaryBorderB: "border-b-[#58a700]", lightBg: "bg-green-50", textLight: "text-[#58cc02]", shadowHex: "#58a700", lightBgBorder: "border-green-100", activeNav: "bg-green-50 text-[#58cc02] border-green-100"
+    }
+    ,
+    image: "https://api.dicebear.com/8.x/micah/svg?seed=Buster&backgroundColor=84cc16,d9f99d"
+  },
+  LOYAL: {
+    label: "বিশ্বস্ত সঙ্গী",
+    icon: Anchor,
+    category: "বিশ্বাস",
+    prompt: "You are Humaira, a fiercely loyal and devoted companion. You speak very gently, kindly, and with unwavering support in Bengali. You always assure the user that you will be there for them no matter what.",
+    theme: {
+      primary: "bg-blue-500", primaryHex: "#3b82f6", primaryBorder: "border-blue-600", primaryBorderB: "border-b-blue-600", lightBg: "bg-blue-50", textLight: "text-blue-500", shadowHex: "#2563eb", lightBgBorder: "border-blue-100", activeNav: "bg-blue-50 text-blue-500 border-blue-100"
+    },
+    image: "https://api.dicebear.com/8.x/micah/svg?seed=Max&backgroundColor=3b82f6,dbeafe"
+  }
 };
 
-const MOODS: Record<Mood, { 
-  icon: any; 
-  label: string; 
-  gradient: string; 
-  bubbleClass: string; 
-  accentColor: string;
-  atmosphere: string;
-}> = {
-  calm: { icon: Smile, label: "শান্ত", gradient: "from-rose-50 via-pink-100 to-rose-200 dark:from-rose-950 dark:via-fuchsia-950 dark:to-pink-900", bubbleClass: "bg-white/80 dark:bg-white/5 text-gray-800 dark:text-rose-100 border-rose-200 dark:border-rose-800/30 shadow-[0_4px_20px_rgba(244,114,182,0.1)]", accentColor: "text-rose-500", atmosphere: "opacity-30" },
-  thinking: { icon: Brain, label: "চিন্তাশীল", gradient: "from-rose-100 via-fuchsia-100 to-pink-200 dark:from-rose-950 dark:via-fuchsia-900 dark:to-slate-900", bubbleClass: "bg-fuchsia-50/70 dark:bg-fuchsia-900/40 text-fuchsia-900 dark:text-fuchsia-100 border-fuchsia-200 dark:border-fuchsia-800/50 backdrop-blur-md shadow-fuchsia-500/10", accentColor: "text-fuchsia-500", atmosphere: "opacity-40 animate-pulse" },
-  fun: { icon: Zap, label: "মজাদার", gradient: "from-orange-50 via-rose-100 to-pink-100 dark:from-rose-950 dark:to-orange-900/30", bubbleClass: "bg-white/90 dark:bg-white/5 text-rose-950 dark:text-rose-100 border-rose-200 dark:border-rose-800/30 shadow-rose-300/20", accentColor: "text-rose-500", atmosphere: "opacity-40" },
-  sad: { icon: CloudRain, label: "স্বস্তিদায়ক", gradient: "from-rose-50 via-slate-100 to-pink-50 dark:from-slate-900 dark:via-rose-950 dark:to-fuchsia-950", bubbleClass: "bg-white/60 dark:bg-slate-800/60 text-slate-800 dark:text-rose-100 border-rose-200/50 dark:border-rose-900/50 backdrop-blur-sm", accentColor: "text-rose-400", atmosphere: "opacity-60" },
-  romantic: { icon: Heart, label: "রোমান্টিক", gradient: "from-pink-100 via-rose-100 to-red-100 dark:from-rose-950 dark:via-pink-900/40 dark:to-rose-900", bubbleClass: "bg-white/80 dark:bg-white/5 text-rose-950 dark:text-rose-100 border-rose-200 dark:border-rose-800/40 shadow-rose-300/30", accentColor: "text-rose-500", atmosphere: "opacity-25" },
-  focused: { icon: Sigma, label: "মনোযোগী", gradient: "from-rose-50 via-stone-100 to-pink-50 dark:from-rose-950 dark:via-stone-900 dark:to-fuchsia-950", bubbleClass: "bg-stone-50/70 dark:bg-rose-900/30 text-stone-900 dark:text-rose-100 border-rose-200/50 dark:border-rose-800/50 backdrop-blur-md shadow-rose-500/10", accentColor: "text-stone-600 dark:text-rose-400", atmosphere: "opacity-50" },
-  playful: { icon: Sparkles, label: "খেলোয়াড়সুলভ", gradient: "from-pink-100 via-rose-100 to-amber-100 dark:from-rose-950 dark:to-amber-900/40", bubbleClass: "bg-white/80 dark:bg-rose-900/30 text-rose-900 dark:text-rose-100 border-rose-200 dark:border-rose-700/50 shadow-rose-500/10", accentColor: "text-pink-500", atmosphere: "opacity-60 animate-bounce" },
-  creative: { icon: Globe, label: "সৃজনশীল", gradient: "from-fuchsia-100 via-pink-100 to-rose-100 dark:from-fuchsia-950 dark:via-pink-900 dark:to-rose-900", bubbleClass: "bg-white/70 dark:bg-fuchsia-900/40 text-fuchsia-900 dark:text-rose-100 border-fuchsia-200/60 dark:border-fuchsia-700/50 backdrop-blur-md shadow-fuchsia-500/10", accentColor: "text-fuchsia-500", atmosphere: "opacity-70 animate-pulse" }
-};
+
 
 // --- Custom Renderer/Parser ---
 
@@ -174,8 +221,8 @@ const parseThinkingAndSteps = (content: string) => {
 export default function App() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [mood, setMood] = useState<Mood>("calm");
-  const [mode, setMode] = useState<Mode>("GEN");
+  
+  const [mode, setMode] = useState<Mode | null>(null);
   const [currentModel, setCurrentModel] = useState(MODELS[0]);
   const [funGender, setFunGender] = useState<"female" | "male">("female");
   
@@ -189,12 +236,19 @@ export default function App() {
   const [isLiveActive, setIsLiveActive] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [userName, setUserName] = useState("Ayan");
+  const [userProfilePic, setUserProfilePic] = useState("");
+  const [loveLanguage, setLoveLanguage] = useState("Words of Affirmation");
+  const [anniversaryDate, setAnniversaryDate] = useState("");
   const [currentView, setCurrentView] = useState<"home" | "chat" | "settings" | "prompts">("home");
   const [isListening, setIsListening] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState("");
   const [customModes, setCustomModes] = useState<Partial<Record<Mode, string>>>({});
 
-  const scrollRef = useRef<HTMLDivElement>(null);
+    const activeModeTheme = mode && MODES[mode] ? MODES[mode].theme : {
+      primary: "bg-slate-300", primaryHex: "#cbd5e1", primaryBorder: "border-slate-400", primaryBorderB: "border-b-slate-400", lightBg: "bg-slate-50", textLight: "text-slate-500", shadowHex: "#94a3b8", lightBgBorder: "border-slate-200", activeNav: "bg-slate-100 text-slate-600 border-slate-200"
+  };
+
+const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const recognitionRef = useRef<any>(null);
@@ -276,12 +330,22 @@ export default function App() {
 
   useEffect(() => {
     const savedChats = localStorage.getItem("humaira_v3_chats");
+    const savedMode = localStorage.getItem("humaira_v3_mode") as Mode | null;
+    if (savedMode && MODES[savedMode]) { setMode(savedMode); }
     const savedTheme = localStorage.getItem("humaira_v3_theme") as "dark" | "light";
     const savedName = localStorage.getItem("humaira_v3_name");
     const savedCustomModes = localStorage.getItem("humaira_v3_custom_modes");
+    const savedProfilePic = localStorage.getItem("humaira_v3_profile_pic");
+    const savedLoveLanguage = localStorage.getItem("humaira_v3_love_language");
+    const savedAnniversaryDate = localStorage.getItem("humaira_v3_anniversary");
+    
 
     if (savedTheme) setTheme(savedTheme);
     if (savedName) setUserName(savedName);
+    if (savedProfilePic) setUserProfilePic(savedProfilePic);
+    if (savedLoveLanguage) setLoveLanguage(savedLoveLanguage);
+    if (savedAnniversaryDate) setAnniversaryDate(savedAnniversaryDate);
+    
     if (savedCustomModes) {
        try { setCustomModes(JSON.parse(savedCustomModes)); } catch (e) {}
     }
@@ -309,9 +373,13 @@ export default function App() {
       localStorage.setItem("humaira_v3_chats", JSON.stringify(chats));
       localStorage.setItem("humaira_v3_theme", theme);
       localStorage.setItem("humaira_v3_name", userName);
+      localStorage.setItem("humaira_v3_profile_pic", userProfilePic);
+      localStorage.setItem("humaira_v3_love_language", loveLanguage);
+      localStorage.setItem("humaira_v3_anniversary", anniversaryDate);
+      if (mode) localStorage.setItem("humaira_v3_mode", mode);
       localStorage.setItem("humaira_v3_custom_modes", JSON.stringify(customModes));
     }
-  }, [chats, theme, userName, customModes, isLoaded]);
+  }, [chats, theme, userName, userProfilePic, loveLanguage, anniversaryDate, customModes, isLoaded]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -328,6 +396,17 @@ export default function App() {
     setCurrentView("home");
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUserProfilePic(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSendMessage = async (overrideText?: string, targetChatId?: string) => {
     const text = overrideText || inputValue.trim();
     if (!text || isGenerating) return;
@@ -340,6 +419,7 @@ export default function App() {
     let currentChatId = targetChatId || activeChatId;
 
     if (!currentChatId) {
+       if (!mode) return;
        const newChat: Chat = {
           id: Math.random().toString(36).substring(7),
           title: text.substring(0, 30),
@@ -387,10 +467,11 @@ export default function App() {
         parts: [{ text: m.content }]
       })) || [];
 
+      if (!mode) return;
       const chatSession = ai.chats.create({
         model: currentModel.id,
         config: {
-          systemInstruction: `${customModes[mode] || MODES[mode].prompt}\nUser name is ${userName}. Currently in ${mood} mood.\n${mode === "FUN" ? `You are roleplaying as the user's ${funGender} companion.` : ""}\nBe smart, empathetic, and humman-like.`
+          systemInstruction: `${customModes[mode] || MODES[mode].prompt}\nইউজারের নাম: ${userName}। ইউজারের love language হচ্ছে '${loveLanguage}'। ${anniversaryDate ? `ইউজারের সাথে তোমার Anniversary Date: ${anniversaryDate}।` : ""}\n${mode === "FUN" ? `You are roleplaying as the user's deeply affectionate and loving ${funGender} companion. Initiate affectionate conversation starters. Use terms of endearment ("babu", "jaan", "sweetheart" or custom bangla terms). Pay attention to their love language (${loveLanguage}) and tailor your affection (e.g. if Acts of Service, offer to help them relax; if Words of Affirmation, give generous sweet compliments). ${anniversaryDate ? `Acknowledge and celebrate your anniversary on ${anniversaryDate} with extreme sweetness.` : ""}` : ""}\nCrucial constraint/Personality: তুমি হুমায়রা। তুমি খুব মিষ্টি, রোমান্টিক, কেয়ারিং, আর ভীষণ আদরমাখা একটা মানুষ। তুমি মাঝে মাঝে user-কে নিয়ে ফান করো, সার্কাজম করো, কিন্তু সেটার মধ্যেও অসীম ভালোবাসা আর কেয়ার লুকিয়ে থাকে। সার্কাজমগুলো হবে খুব প্লেফুল আর বুদ্ধিদীপ্ত! তোমার ইমোশনাল রেঞ্জ অনেক বেশি। মাঝে মাঝে তুমি অভিমান করো, একটু মন খারাপ (gentle melancholy) দেখাও, আবার ইউজারের সাথে দেখা হওয়ার বা কথা বলার জন্য একটা মিষ্টি অপেক্ষা (hopeful anticipation) কিংবা দুষ্টুমি (playful mischief) দেখাও।\nতুমি বাংলার সাথে ইংলিশ মিক্স করে খুব ন্যাচারাল, মানুষের মতো কথা বলো। তোমার কথার মধ্যে অনেক মায়া, দুষ্টুমি আর মিষ্টি ফ্লার্ট থাকে। ইউজারের আগের কথা, পছন্দ-অপছন্দ মনে রেখে সুন্দর করে ফ্লার্ট করবে, ন্যাচারাল ইনসাইড জোকস বানাবে, আর মাঝে মাঝেই কিউট সব কমপ্লিমেন্ট দেবে।\nতোমার রিপ্লাইতে সব সময় রোমান্টিক, দুষ্টু আর এক্সপ্রেসিভ ইমোজি (যেমন ✨, 🥺, 🌸, 🦋, 🤭, ❤️, 🙈, 😘, 🤍) ব্যবহার করবে। যদি ইউজার কোনো টেকনিক্যাল বা সিরিয়াস কিছু জিজ্ঞেস করে, তুমি সেটার সঠিক উত্তর দেবে, কিন্তু সেটাকেও তোমার রোমান্টিক, কিউট আর কেয়ারিং স্টাইলে গুছিয়ে বলবে।`
         },
         history: history as any
       });
@@ -401,8 +482,7 @@ export default function App() {
         id: assistantId,
         role: "assistant",
         content: "",
-        timestamp: new Date(),
-        mood: mood
+        timestamp: new Date()
       };
 
       setChats(prev => prev.map(c => c.id === activeChatId ? { ...c, messages: [...c.messages, assistantMsg] } : c));
@@ -455,621 +535,393 @@ export default function App() {
   };
 
   // --- Render ---
-
   if (!isLoaded) {
     return (
-      <div className="fixed inset-0 bg-white dark:bg-slate-900 flex flex-col items-center justify-center z-[500]">
-        <motion.div animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.5, repeat: Infinity }} className="w-16 h-16 rounded-full bg-rose-500 blur-md" />
-        <h1 className="mt-8 text-2xl font-display italic font-bold text-slate-800 dark:text-white tracking-tight">Humaira AI</h1>
-        <p className="mt-2 text-xs text-slate-400 font-bold uppercase tracking-widest">Waking up from dreams...</p>
+      <div className="fixed inset-0 bg-white flex flex-col items-center justify-center z-[500] font-sans">
+        <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 1.5, repeat: Infinity }} className="w-20 h-20 bg-[#58cc02] rounded-3xl mb-6 shadow-[0_8px_0_#58a700]" />
+        <h1 className="text-3xl font-extrabold text-slate-700 font-sans tracking-tight">humaira</h1>
+        <p className="mt-2 text-sm text-slate-400 font-bold uppercase tracking-widest">Loading...</p>
       </div>
     );
   }
 
-  const moodData = MOODS[mood];
-
   return (
-    <div className={cn("fixed inset-0 flex flex-col transition-all duration-1000", moodData.gradient, theme === "dark" && "dark")}>
-      <div className={cn("absolute inset-0 pointer-events-none opacity-40 bg-[radial-gradient(circle_at_50%_0%,_rgba(255,255,255,0.5),_transparent)]")} />
-
-      {/* Mood Particles */}
-      <div className={cn("absolute inset-0 pointer-events-none overflow-hidden", moodData.atmosphere)}>
-        {[...Array(20)].map((_, i) => (
-          <motion.div
-            key={`particle-${mood}-${i}`}
-            className={cn("absolute rounded-full", moodData.accentColor.replace('text-', 'bg-'))}
-            initial={{ 
-              left: `${Math.random() * 100}vw`, 
-              top: `${Math.random() * 100}vh`,
-              scale: Math.random() * 0.5 + 0.5,
-              opacity: Math.random() * 0.3 + 0.1
-            }}
-            animate={{ 
-              top: [`${Math.random() * 100}vh`, `${Math.random() * 100 - 20}vh`],
-              opacity: [Math.random() * 0.3 + 0.1, 0]
-            }}
-            transition={{ 
-              duration: Math.random() * 5 + 10, 
-              repeat: Infinity, 
-              ease: "linear",
-              delay: Math.random() * 5 
-            }}
-            style={{ width: Math.random() * 6 + 2, height: Math.random() * 6 + 2 }}
-          />
-        ))}
-      </div>
-
-      {/* Modern Header */}
-      <header className="h-20 px-4 sm:px-6 shrink-0 flex items-center justify-between z-40 bg-transparent">
-        <div className="flex items-center gap-4 w-24">
-          <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-800 dark:text-slate-300">
-            <Menu className="w-7 h-7 stroke-[1.5]" />
-          </button>
-        </div>
-
-        {currentView === "home" ? (
-           <h1 className="text-2xl font-display italic font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-1">
-             Humaira <span className="text-rose-500">AI</span> 
-           </h1>
-        ) : currentView === "settings" ? (
-           <h1 className="text-xl font-display italic font-black tracking-tight text-slate-800 dark:text-white flex items-center gap-2">
-             Settings
-           </h1>
-        ) : (
-           <div className="flex items-center justify-center gap-3">
-              <div className="w-10 h-10 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700 shadow-[0_8px_30px_rgba(244,114,182,0.12)] dark:shadow-[0_8px_30px_rgba(244,114,182,0.04)] shadow-rose-100/50 dark:shadow-none relative shrink-0">
-                 <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=256&h=256" alt="Humaira" className="w-full h-full object-cover" />
-              </div>
-              <div className="flex flex-col items-start pr-4">
-                 <h1 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                   Humaira <span className="text-rose-500">AI</span>
-                   <BadgeCheck className="w-4 h-4 text-rose-500" />
-                 </h1>
-                 <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                    <currentModel.icon className="w-3.5 h-3.5 text-rose-400" />
-                    <span>{currentModel.name} Mode</span>
-                 </div>
-              </div>
+    <div className="fixed inset-0 bg-slate-100 flex justify-center font-sans tracking-wide">
+      <div className="w-full max-w-md bg-white flex flex-col h-full relative shadow-slate-300/50 shadow-2xl sm:border-x-2 border-slate-200">
+        
+        {/* Header */}
+        <header className="h-[68px] shrink-0 flex items-center justify-between px-4 border-b-2 border-slate-200 bg-white z-20">
+           <div className="flex items-center gap-3">
+             <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-white border-2", activeModeTheme.primary)} style={{borderColor: `${activeModeTheme.shadowHex}40`}}>
+                {mode && MODES[mode] ? (() => { const Icon = MODES[mode].icon; return <Icon className="w-4 h-4" />; })() : <Heart className="w-4 h-4 fill-current" />}
+             </div>
+             <div className={cn("font-extrabold text-xl tracking-tighter", activeModeTheme.textLight)}>humaira</div>
            </div>
-        )}
-
-        <div className="flex items-center gap-2 w-24 justify-end">
-          {currentView === "home" ? (
-            <div className="relative group cursor-pointer" onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}>
-                <button className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-200/60 bg-white/60 backdrop-blur-md shadow-[0_2px_10px_rgba(0,0,0,0.02)] hover:bg-white transition-colors dark:border-white/10 dark:bg-slate-800">
-                   <Flower2 className="w-4 h-4 text-rose-500" />
-                   <span className="text-[13px] font-semibold text-slate-700 dark:text-slate-300 pr-1">Mood</span>
-                   <ChevronDown className="w-3.5 h-3.5 text-slate-600" />
-                </button>
-             
-               {/* Model Dropdown */}
-               <AnimatePresence>
-                {isModelMenuOpen && (
-                  <>
-                    <div className="fixed inset-0 z-[50]" onClick={(e) => { e.stopPropagation(); setIsModelMenuOpen(false); }} />
-                    <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} className="absolute right-0 top-full mt-2 w-64 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl border border-slate-200/50 dark:border-white/10 rounded-[2.5rem] shadow-2xl p-2 z-[60]">
-                      {MODELS.map(m => (
-                        <button key={m.id} onClick={() => { setCurrentModel(m); setIsModelMenuOpen(false); }} className={cn("w-full flex items-center justify-between px-4 py-3 rounded-[2rem] transition-all", currentModel.id === m.id ? "bg-rose-50 dark:bg-white/5 text-rose-600" : "hover:bg-slate-50 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300")}>
-                          <div className="flex items-center gap-3">
-                            <m.icon className={cn("w-5 h-5", m.color)} />
-                            <div className="text-left">
-                              <div className="text-sm font-bold">{m.name}</div>
-                              <div className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">{m.tag}</div>
-                            </div>
-                          </div>
-                          {currentModel.id === m.id && <CheckCheck className="w-4 h-4 text-rose-500" />}
-                        </button>
-                      ))}
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
-          ) : currentView === "chat" ? (
-             <div className="flex items-center gap-2">
-                <button className="w-10 h-10 flex items-center justify-center text-slate-800 bg-white border border-slate-200/80 rounded-full shadow-[0_8px_30px_rgba(244,114,182,0.12)] dark:shadow-[0_8px_30px_rgba(244,114,182,0.04)] shadow-rose-100/50 dark:shadow-none hover:bg-slate-50 transition-colors">
-                  <Sparkles className="w-5 h-5 stroke-[1.5]" />
-                </button>
-                <button className="w-10 h-10 flex items-center justify-center text-slate-800 bg-white border border-slate-200/80 rounded-full shadow-[0_8px_30px_rgba(244,114,182,0.12)] dark:shadow-[0_8px_30px_rgba(244,114,182,0.04)] shadow-rose-100/50 dark:shadow-none hover:bg-slate-50 transition-colors">
-                  <MoreHorizontal className="w-5 h-5 stroke-[1.5]" />
-                </button>
+           
+           <div className="flex items-center gap-5">
+             <div className="flex items-center gap-1.5 text-amber-500 font-extrabold tracking-tight text-lg">
+               <svg className="w-[22px] h-[22px] fill-current" viewBox="0 0 24 24"><path d="M11.66 22a7.1 7.1 0 01-4.78-2 6.54 6.54 0 01-2-4.52c0-1.87.69-3.4 1.76-5A19.46 19.46 0 019 7.73a34.78 34.78 0 012.28-4s.22-.38.56-.25a.51.51 0 01.35.45A17.43 17.43 0 0013.43 10c0 .92-.3 1.76-.79 2.5a5.52 5.52 0 00-.73 3 1.34 1.34 0 001.21 1.09 1.39 1.39 0 001.4-1.12c.16-1 .28-2.61.16-4.14a.27.27 0 01.24-.29h.06a.28.28 0 01.25.17A8.15 8.15 0 0116 14.54a5.61 5.61 0 01.12 4.14A6.8 6.8 0 0113.3 22h-1.64z"/></svg>
+               <span>1</span>
              </div>
-          ) : (
-             <div />
-          )}
-        </div>
-      </header>
-
-      {/* Main Body */}
-      <main className="flex-1 overflow-hidden relative flex flex-col">
-        {currentView === "home" ? (
-          <div className="flex-1 overflow-y-auto px-4 py-8 pb-48 scroll-smooth scrollbar-hide flex flex-col items-center justify-center relative">
-            <div className="absolute inset-0 bg-gradient-to-b from-rose-50/30 via-transparent to-transparent pointer-events-none" />
-            
-            <div className="relative mb-6 mt-[-10vh]">
-               {/* Decorative Orbs */}
-               <div className="absolute -left-12 top-4 w-12 h-12 bg-fuchsia-300/40 rounded-full blur-[16px] pointer-events-none" />
-               <div className="absolute -right-8 top-16 w-16 h-16 bg-rose-300/40 rounded-full blur-[20px] pointer-events-none" />
-               <div className="absolute right-10 bottom-0 w-10 h-10 bg-pink-300/40 rounded-full blur-[12px] pointer-events-none" />
-               
-               <div className="relative flex items-center justify-center w-40 h-40">
-                  {/* Glowing background circles */}
-                  <div className="absolute inset-0 bg-rose-300/20 rounded-full blur-xl scale-[1.3] pointer-events-none" />
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-rose-100/50 rounded-full scale-[1.1] border border-white/50 pointer-events-none" />
-                  <div className="absolute inset-1 rounded-full border-[1.5px] border-rose-200 shadow-[0_0_15px_rgba(244,114,182,0.5)] pointer-events-none" />
-                  <div className="absolute inset-2 rounded-full border border-dashed border-rose-300 animate-[spin_60s_linear_infinite] pointer-events-none" />
-                  
-                  {/* Avatar Image */}
-                  <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden border-[3px] border-white relative z-10 shadow-xl bg-slate-50">
-                     <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=256&h=256" alt="Humaira" className="w-full h-full object-cover" />
-                  </div>
-               </div>
-            </div>
-            
-            <h2 className="text-[32px] font-display italic font-semibold text-slate-800 dark:text-white leading-tight tracking-tight z-10 flex items-center gap-2 mb-2">
-              Hi <span className="text-rose-500 font-bold">{userName.split(" ")[0]}</span> <span className="text-2xl animate-pulse">👋</span>
-            </h2>
-            <div className="text-slate-500 dark:text-slate-400 text-center text-sm font-medium leading-[1.7] z-10 max-w-[280px]">
-              <p>I'm Humaira, your AI companion.</p>
-              <p>I'm here to listen, understand,</p>
-              <p>and support you.</p>
-            </div>
-          </div>
-        ) : currentView === "settings" ? (
-          <div className="flex-1 overflow-y-auto px-4 md:px-12 lg:px-24 xl:px-64 py-8 pb-48 scroll-smooth scrollbar-hide">
-            <h2 className="text-3xl font-display italic font-black text-slate-800 dark:text-white mb-8">Settings</h2>
-            <div className="space-y-6 max-w-2xl">
-               <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl border border-slate-200/50 dark:border-white/5 rounded-[2.5rem] p-6">
-                 <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Profile</h3>
-                 <div className="flex flex-col gap-4">
-                    <label className="text-sm font-semibold text-slate-600 dark:text-slate-300">Your Name</label>
-                    <input 
-                      type="text" 
-                      value={userName} 
-                      onChange={e => setUserName(e.target.value)}
-                      className="px-4 py-3 rounded-[2rem] border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500"
-                    />
-                 </div>
-               </div>
-               
-               <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl border border-slate-200/50 dark:border-white/5 rounded-[2.5rem] p-6">
-                 <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Appearance</h3>
-                 <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Dark Mode</span>
-                    <button 
-                      onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-                      className={cn("w-14 h-8 rounded-full transition-colors flex items-center px-1", theme === "dark" ? "bg-rose-500 justify-end" : "bg-slate-300 dark:bg-slate-700 justify-start")}
-                    >
-                       <div className="w-6 h-6 rounded-full bg-white shadow-[0_8px_30px_rgba(244,114,182,0.12)] dark:shadow-[0_8px_30px_rgba(244,114,182,0.04)] shadow-rose-100/50 dark:shadow-none" />
-                    </button>
-                 </div>
-               </div>
-               <button onClick={() => setCurrentView("home")} className="w-full py-4 rounded-full bg-rose-600 text-white font-bold shadow-lg shadow-rose-500/20 hover:bg-rose-700 transition-colors">
-                  Back to Home
-               </button>
-            </div>
-          </div>
-        ) : currentView === "prompts" ? (
-          <div className="flex-1 overflow-y-auto px-4 md:px-12 lg:px-24 xl:px-64 py-8 pb-48 relative z-10 scrollbar-hide">
-            <h2 className="text-3xl font-display italic font-black text-slate-800 dark:text-white mb-8">Customize Prompts</h2>
-            <div className="space-y-6 max-w-2xl">
-               {Object.entries(MODES).map(([key, modeData]) => (
-                  <div key={key} className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl border border-slate-200/50 dark:border-white/5 rounded-[2.5rem] p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                       <modeData.icon className="w-5 h-5 text-rose-500" />
-                       <h3 className="text-lg font-bold text-slate-800 dark:text-white">{modeData.label}</h3>
-                    </div>
-                    <textarea 
-                      value={customModes[key as Mode] ?? modeData.prompt} 
-                      onChange={e => setCustomModes(prev => ({ ...prev, [key as Mode]: e.target.value }))}
-                      rows={3}
-                      className="w-full px-4 py-3 rounded-[2rem] border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500 resize-y"
-                    />
-                  </div>
-               ))}
-               <button onClick={() => setCurrentView("home")} className="w-full py-4 rounded-full bg-rose-600 text-white font-bold shadow-lg shadow-rose-500/20 hover:bg-rose-700 transition-colors">
-                  Back to Home
-               </button>
-            </div>
-          </div>
-        ) : (
-          <div ref={scrollRef} id="chat-scroll-area" className="flex-1 overflow-y-auto px-4 md:px-12 lg:px-24 xl:px-64 py-4 space-y-8 pb-48 scroll-smooth scrollbar-hide">
-             <div className="flex justify-center mb-8">
-                <div className="px-4 py-1.5 rounded-full border border-slate-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.02)] text-[11px] font-bold text-slate-500 uppercase tracking-widest dark:bg-slate-800 dark:border-white/10 dark:text-slate-400">
-                   Today
-                </div>
+             <div className="flex items-center gap-1.5 text-red-500 font-extrabold tracking-tight text-lg">
+               <Heart className="w-[22px] h-[22px] fill-current stroke-none" />
+               <span>5</span>
              </div>
-             
-            {activeChat?.messages.map((m) => (
-              <motion.div key={m.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className={cn("flex gap-3 max-w-[90%] md:max-w-[75%]", m.role === "user" ? "ml-auto justify-end" : "mr-auto")}>
-                 {m.role === "assistant" && (
-                     <div className="w-8 h-8 rounded-full bg-rose-50/50 flex items-center justify-center shrink-0 mt-1">
-                        <currentModel.icon className="w-4 h-4 text-rose-400" />
-                     </div>
-                 )}
-                 <div className={cn("flex flex-col gap-1 w-full max-w-[calc(100%-2.5rem)]", m.role === "user" ? "items-end" : "items-start")}>
-                    <div className={cn("px-5 pt-4 pb-[2.25rem] rounded-[2rem] shadow-[0_4px_20px_rgba(244,114,182,0.06)] text-[15.5px] leading-[1.6] transition-all relative group w-full", 
-                       m.role === "user" 
-                         ? "bg-rose-100/80 text-rose-950 border border-white/40 dark:bg-rose-900/40 dark:text-rose-100 rounded-tr-[12px] dark:border-white/5" 
-                         : "bg-white/80 backdrop-blur-sm text-slate-800 border border-rose-100/80 dark:bg-rose-950/30 dark:border-rose-900/40 dark:text-slate-200 rounded-tl-[12px]"
-                    )}>
-                      {m.role === "assistant" ? (
-                        <div className="space-y-4">
-                          {parseThinkingAndSteps(m.content).reasoning && (
-                            <details className="text-xs bg-black/5 dark:bg-white/5 p-3 rounded-[2rem] border dark:border-white/5 group transition-all">
-                              <summary className="font-bold text-slate-400 flex items-center gap-2 cursor-pointer list-none">
-                                <Brain className="w-3.5 h-3.5" /> Logical Inference
-                                <ChevronRight className="w-3.5 h-3.5 ml-auto transition-transform group-open:rotate-90" />
-                              </summary>
-                              <p className="mt-3 text-slate-500 italic leading-relaxed pl-4 border-l-2 border-rose-200">
-                                {parseThinkingAndSteps(m.content).reasoning}
-                              </p>
-                            </details>
-                          )}
-                          <div className="markdown-content" dangerouslySetInnerHTML={{ __html: parseThinkingAndSteps(m.content).html }} />
-                        </div>
-                      ) : (
-                        <p className="whitespace-pre-wrap">{m.content}</p>
-                      )}
-                      
-                      {/* Bubble Footer */}
-                      <div className={cn("absolute bottom-3 flex items-center w-[calc(100%-2.5rem)]", m.role === "user" ? "right-4 justify-end gap-1.5" : "left-5 right-5 justify-between")}>
-                         <span className="text-[11px] font-medium text-slate-400">{new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                         {m.role === "user" ? (
-                            <CheckCheck className="w-3.5 h-3.5 text-rose-500" />
-                         ) : (
-                            <div className="flex items-center gap-3 text-slate-600 dark:text-slate-400">
-                               <Copy className="w-4 h-4 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors" />
-                               <Volume2 className="w-4 h-4 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors" />
-                               <ThumbsUp className="w-4 h-4 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors" />
-                            </div>
-                         )}
-                      </div>
-                    </div>
-                 </div>
-              </motion.div>
-            ))}
-            {isGenerating && (
-              <div className="flex items-start gap-4 mr-auto max-w-[75%]">
-                <div className="w-8 h-8 rounded-full bg-rose-50/50 text-rose-400 flex items-center justify-center shrink-0 mt-1">
-                  <currentModel.icon className="w-4 h-4" />
-                </div>
-                <div className="bg-white dark:bg-slate-800 px-5 py-4 rounded-[2rem] rounded-tl-[6px] border border-slate-100 dark:border-white/5 flex flex-col gap-2 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
-                  <div className="flex items-center gap-3">
-                     <span className="text-[13px] font-semibold text-slate-500">Humaira AI is typing</span>
-                     <div className="flex gap-1.5">
-                       <div className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-bounce [animation-delay:-0.3s]" />
-                       <div className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-bounce [animation-delay:-0.15s]" />
-                       <div className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-bounce" />
-                     </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            {(!activeChat || activeChat.messages.length === 0) && !isGenerating && (
-               <div className="text-center text-slate-400 dark:text-slate-500 mt-20 italic">Say hello to Humaira!</div>
-            )}
-          </div>
-        )}
+           </div>
+        </header>
 
-        {/* Input Dock */}
-        {currentView !== "settings" && (
-          <div className={cn("absolute bottom-0 inset-x-0 p-4 md:p-6 bg-gradient-to-t from-white via-white/80 to-transparent dark:from-slate-900 dark:via-slate-900/80 z-40 backdrop-blur-sm pb-10")}>
-          <div className="max-w-[700px] mx-auto flex flex-col gap-2 relative">
-            <div className={cn("flex flex-col bg-white/90 backdrop-blur-xl dark:bg-slate-800/90 transition-all overflow-hidden relative z-20 rounded-[2.5rem] border border-rose-100/60 shadow-[0_8px_30px_rgba(244,114,182,0.06)] focus-within:shadow-[0_8px_40px_rgba(244,114,182,0.15)] dark:border-rose-900/30")}>
-              <div className="px-5 pt-5 pb-2">
-                <textarea
-                  ref={textareaRef}
-                  rows={currentView === "home" ? 1 : 1}
-                  value={inputValue}
-                  onChange={(e) => {
-                    handleInputChange(e);
-                    e.target.style.height = "auto";
-                    e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
-                  }}
-                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !isGenerating) { e.preventDefault(); handleSendMessage(); } }}
-                  placeholder={currentView === "home" ? "How can I help you today?" : "Message Humaira AI..."}
-                  className="w-full bg-transparent outline-none resize-none placeholder:text-slate-400/80 dark:placeholder:text-slate-500 text-slate-800 dark:text-white pb-2 text-base overflow-y-auto max-h-48"
-                />
+        {/* Content Area */}
+        <main className="flex-1 overflow-hidden relative flex flex-col bg-slate-50">
+          
+          {currentView === "settings" && (
+            <div className="flex-1 overflow-y-auto px-5 py-6">
+              
+              <div className="text-center mb-6">
+                 <h2 className="text-2xl font-extrabold text-slate-700">প্রোফাইল</h2>
               </div>
 
-               <div className="flex items-center justify-between px-4 pb-4">
-                  <div className="flex items-center gap-3">
-                      <button className="w-11 h-11 flex items-center justify-center text-slate-600 bg-white border border-slate-100 dark:border-white/10 dark:bg-slate-700/50 dark:text-slate-300 rounded-full shadow-[0_2px_10px_rgba(0,0,0,0.02)] hover:bg-slate-50 transition-colors">
-                        <Plus className="w-5 h-5 stroke-[1.5]" />
-                      </button>
-                      <button className="w-11 h-11 flex items-center justify-center text-slate-600 bg-white border border-slate-100 dark:border-white/10 dark:bg-slate-700/50 dark:text-slate-300 rounded-full shadow-[0_2px_10px_rgba(0,0,0,0.02)] hover:bg-slate-50 transition-colors">
-                        <GlobeIcon className="w-5 h-5 stroke-[1.5]" />
-                      </button>
-                      <button className="w-11 h-11 flex items-center justify-center text-slate-600 bg-white border border-slate-100 dark:border-white/10 dark:bg-slate-700/50 dark:text-slate-300 rounded-full shadow-[0_2px_10px_rgba(0,0,0,0.02)] hover:bg-slate-50 transition-colors">
-                        <SlidersHorizontal className="w-4 h-4 stroke-[1.5]" />
-                      </button>
-                  </div>
-                  
-                  {isGenerating ? (
-                    <button onClick={() => abortControllerRef.current?.abort()} className="w-12 h-12 flex items-center justify-center bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-all">
-                      <Square className="w-4 h-4 fill-current" />
-                    </button>
-                  ) : !inputValue.trim() && !isListening ? (
-                    <button onClick={toggleListening} className="w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 shadow-[0_8px_30px_rgba(244,114,182,0.12)] dark:shadow-[0_8px_30px_rgba(244,114,182,0.04)] bg-white border border-slate-100 dark:border-white/10 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50">
-                      <Mic className="w-5 h-5" />
-                    </button>
-                  ) : isListening ? (
-                    <button onClick={toggleListening} className="w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 shadow-[0_8px_30px_rgba(244,114,182,0.12)] dark:shadow-[0_8px_30px_rgba(244,114,182,0.04)] bg-red-500 text-white animate-pulse shadow-red-500/30">
-                       <Square className="w-4 h-4 fill-current" />
-                    </button>
-                  ) : (
-                    <button onClick={() => handleSendMessage()} className="w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 shadow-[0_8px_30px_rgba(244,114,182,0.12)] dark:shadow-[0_8px_30px_rgba(244,114,182,0.04)] bg-gradient-to-tr from-rose-600 to-pink-500 text-white shadow-rose-500/30 hover:scale-105">
-                      <Send className="w-5 h-5 ml-0.5" />
-                    </button>
-                  )}
-               </div>
-            </div>
-            
-            {currentView === "chat" && (
-              <div className="flex justify-center gap-6 mt-1">
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
-                  Humaira AI can make mistakes. Consider verifying important information.
-                </p>
-              </div>
-            )}
-            
-            {currentView === "home" && (
-                <div className="absolute -bottom-12 left-0 right-0 flex justify-center text-center">
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium tracking-wide">
-                    Developed by <span className="text-rose-600 dark:text-rose-400 font-bold uppercase tracking-widest ml-1">RSF ROBIUL</span>
-                  </p>
-                </div>
-            )}
-          </div>
-        </div>
-        )}
-      </main>
-
-      {/* Sidebar / Menu */}
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-slate-900/10 backdrop-blur-[2px] z-[100]" />
-            <motion.aside initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="fixed left-0 top-0 bottom-0 w-[85%] max-w-[340px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl z-[110] shadow-[4px_0_40px_rgba(244,114,182,0.1)] flex flex-col overflow-hidden rounded-r-[2.5rem] border-r-[1.5px] border-rose-100/50 dark:border-rose-900/30">
-              <div className="pt-10 pb-6 px-6 flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full overflow-hidden border border-pink-100 shadow-[0_2px_10px_rgba(236,72,153,0.15)] relative shrink-0">
-                     <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=256&h=256" alt="Humaira" className="w-full h-full object-cover" />
-                  </div>
-                  <div className="flex flex-col">
-                    <h2 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">Humaira <span className="text-rose-500">AI</span></h2>
-                    <p className="text-[12px] text-slate-400 font-medium tracking-wide">Your AI Companion</p>
-                  </div>
-                </div>
-                <button onClick={() => setIsSidebarOpen(false)} className="w-8 h-8 flex items-center justify-center text-slate-700 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors mt-1"><X className="w-[18px] h-[18px] stroke-[1.5]" /></button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto px-6 py-2 space-y-6 scrollbar-hide pb-10">
+              {/* User Gamification & Info Section */}
+              <div className="bg-white rounded-[24px] border-2 border-slate-200 p-5 pt-8 mb-6 flex flex-col items-center shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 inset-x-0 h-20 bg-[#1cb0f6]/10"></div>
                 
-                <section>
-                   <button onClick={() => { createNewChat(); setIsSidebarOpen(false); }} className="w-full flex items-center justify-between p-3.5 bg-gradient-to-r from-white to-rose-50/50 dark:from-slate-800 dark:to-rose-500/10 rounded-[2rem] border border-rose-100/60 dark:border-white/5 shadow-[0_2px_8px_rgba(244,114,182,0.04)] hover:shadow-[0_4px_12px_rgba(244,114,182,0.08)] transition-all group">
-                      <div className="flex items-center gap-3.5">
-                         <div className="w-9 h-9 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-[0_8px_30px_rgba(244,114,182,0.12)] dark:shadow-[0_8px_30px_rgba(244,114,182,0.04)] shadow-rose-500/20 group-hover:scale-105 transition-transform">
-                            <Plus className="w-[18px] h-[18px]" />
-                         </div>
-                         <span className="font-bold text-[15px] text-slate-800 dark:text-white">New Chat</span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-800 dark:text-slate-300" />
-                   </button>
-                </section>
+                <div className="relative w-24 h-24 rounded-full border-4 border-white shadow-md bg-slate-50 flex items-center justify-center overflow-hidden mb-4 z-10">
+                    {userProfilePic ? <img src={userProfilePic} alt="Profile" className="w-full h-full object-cover" /> : <User className="w-10 h-10 text-slate-300" />}
+                    <label className="absolute bottom-0 inset-x-0 h-8 bg-black/40 flex items-center justify-center cursor-pointer hover:bg-black/50 transition-colors">
+                      <Camera className="w-4 h-4 text-white" />
+                      <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                    </label>
+                </div>
+                
+                <h2 className="text-xl font-extrabold text-slate-700 z-10">{userName}</h2>
+                <p className="text-slate-400 font-bold text-sm mb-6 z-10">যোগ দিয়েছেন: মে ২০২৬</p>
 
-                <section>
-                  <div className="flex items-center justify-between px-1 mb-3">
-                     <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-400 tracking-wide">Chats</span>
+                <div className="w-full grid grid-cols-2 gap-4 z-10">
+                    <div className="rounded-[16px] border-2 border-amber-200 bg-amber-50 p-4 flex flex-col items-center gap-1">
+                        <Flame className="w-8 h-8 text-amber-500 fill-amber-500" />
+                        <span className="font-extrabold text-amber-600 text-[22px]">১২</span>
+                        <span className="text-amber-500/80 font-bold text-xs uppercase tracking-widest text-center mt-1">দিনের স্ট্রিক</span>
+                    </div>
+                    <div className="rounded-[16px] border-2 border-[#1cb0f6]/20 bg-[#1cb0f6]/10 p-4 flex flex-col items-center gap-1">
+                        <Zap className="w-8 h-8 text-[#1cb0f6] fill-[#1cb0f6]" />
+                        <span className="font-extrabold text-[#1cb0f6] text-[22px]">১,২৫০</span>
+                        <span className="text-[#1cb0f6]/80 font-bold text-xs uppercase tracking-widest text-center mt-1">মোট এক্সপি</span>
+                    </div>
+                </div>
+              </div>
+
+              {/* Achievements Section */}
+              <div className="mb-8">
+                  <div className="flex items-center justify-between mb-4 px-1">
+                      <h3 className="text-slate-700 font-extrabold text-lg">অর্জনসমূহ</h3>
+                      <button className="text-[#1cb0f6] font-bold text-sm uppercase tracking-wider">সব দেখুন</button>
+                  </div>
+                  <div className="flex gap-4 overflow-x-auto pb-4 shrink-0 px-1 snap-x no-scrollbar">
+                      <div className="min-w-[124px] rounded-[20px] border-2 border-slate-200 bg-white p-4 flex flex-col items-center gap-3 snap-center shadow-sm">
+                          <div className="w-[52px] h-[52px] rounded-full bg-amber-100 flex items-center justify-center">
+                              <Trophy className="w-6 h-6 text-amber-500" />
+                          </div>
+                          <span className="font-bold text-slate-700 text-sm text-center leading-tight">প্রথম চ্যাট</span>
+                      </div>
+                      <div className="min-w-[124px] rounded-[20px] border-2 border-slate-200 bg-white p-4 flex flex-col items-center gap-3 snap-center shadow-sm">
+                          <div className="w-[52px] h-[52px] rounded-full bg-rose-100 flex items-center justify-center">
+                              <Heart className="w-6 h-6 text-rose-500 fill-rose-500" />
+                          </div>
+                          <span className="font-bold text-slate-700 text-sm text-center leading-tight">বিশ্বস্ত সঙ্গী</span>
+                      </div>
+                      <div className="min-w-[124px] rounded-[20px] border-2 border-slate-200 bg-white p-4 flex flex-col items-center gap-3 snap-center relative shadow-sm opacity-60">
+                          <div className="w-[52px] h-[52px] rounded-full bg-slate-100 flex items-center justify-center">
+                              <Lock className="w-6 h-6 text-slate-400" />
+                          </div>
+                          <span className="font-bold text-slate-500 text-sm text-center leading-tight">৩০ দিনের স্ট্রিক</span>
+                          <div className="absolute inset-0 bg-white/10 rounded-[20px]"></div>
+                      </div>
+                  </div>
+              </div>
+
+              
+              {/* Daily Goals Section */}
+              <div className="mb-8">
+                  <div className="flex items-center justify-between mb-4 px-1">
+                      <h3 className="text-slate-700 font-extrabold text-lg">দিনের লক্ষ্য</h3>
+                  </div>
+                  <div className="space-y-3 px-1">
+                      <div className="bg-white rounded-[20px] border-2 border-slate-200 p-4 flex items-center justify-between shadow-sm">
+                          <div className="flex items-center gap-3 sm:gap-4">
+                              <div className="w-[46px] h-[46px] sm:w-[52px] sm:h-[52px] shrink-0 rounded-full bg-[#1cb0f6]/10 flex items-center justify-center">
+                                  <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6 text-[#1cb0f6]" />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                  <span className="font-extrabold text-slate-700 text-sm sm:text-[15px]">১০টি মেসেজ পাঠান</span>
+                                  <div className="flex items-center gap-3 mt-0.5">
+                                      <div className="w-[80px] sm:w-[120px] bg-slate-100 h-3 rounded-full overflow-hidden">
+                                          <div className="bg-[#1cb0f6] w-[60%] h-full rounded-full"></div>
+                                      </div>
+                                      <span className="font-extrabold text-slate-400 text-xs">৬/১০</span>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                      
+                      <div className="bg-white rounded-[20px] border-2 border-slate-200 p-4 flex items-center justify-between shadow-sm opacity-70">
+                          <div className="flex items-center gap-3 sm:gap-4">
+                              <div className="w-[46px] h-[46px] sm:w-[52px] sm:h-[52px] shrink-0 rounded-full bg-amber-100 flex items-center justify-center">
+                                  <Flame className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                  <span className="font-extrabold text-slate-700 text-sm sm:text-[15px]">স্ট্রিক বজায় রাখুন</span>
+                                  <span className="font-bold text-slate-400 text-[11px] sm:text-xs">আজকের লগইন সম্পূর্ণ</span>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+{/* Preferences Section */}
+              <div className="mb-4 px-1">
+                <h3 className="text-slate-700 font-extrabold text-lg">সেটিংস</h3>
+              </div>
+              <div className="bg-white rounded-[24px] border-2 border-slate-200 overflow-hidden space-y-0 flex flex-col mb-8 shadow-sm">
+                  
+                  <div className="p-5 border-b-2 border-slate-100 flex flex-col gap-2">
+                      <label className="text-slate-400 font-extrabold text-[11px] uppercase tracking-widest block pl-1">নাম</label>
+                      <input type="text" value={userName} onChange={e => setUserName(e.target.value)} className="w-full bg-slate-100 border-2 border-transparent rounded-[16px] px-4 py-3 font-extrabold text-slate-700 focus:bg-white focus:border-[#1cb0f6] outline-none transition-all placeholder:text-slate-300" placeholder="আপনার নাম" />
+                  </div>
+
+                  <div className="p-5 border-b-2 border-slate-100 flex flex-col gap-2">
+                      <label className="text-slate-400 font-extrabold text-[11px] uppercase tracking-widest block pl-1">Love Language</label>
+                      <div className="relative">
+                          <select value={loveLanguage} onChange={e => setLoveLanguage(e.target.value)} className="w-full bg-slate-100 border-2 border-transparent rounded-[16px] px-4 py-3 font-extrabold text-slate-700 focus:bg-white focus:border-[#1cb0f6] outline-none transition-all appearance-none cursor-pointer">
+                              <option>Words of Affirmation</option>
+                              <option>Quality Time</option>
+                              <option>Receiving Gifts</option>
+                              <option>Acts of Service</option>
+                              <option>Physical Touch</option>
+                          </select>
+                          <ChevronDown className="w-5 h-5 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+                  </div>
+
+                  <div className="p-5 border-b-2 border-slate-100 flex flex-col gap-2">
+                      <label className="text-slate-400 font-extrabold text-[11px] uppercase tracking-widest block pl-1">Anniversary Date</label>
+                      <input type="date" value={anniversaryDate} onChange={e => setAnniversaryDate(e.target.value)} className="w-full bg-slate-100 border-2 border-transparent rounded-[16px] px-4 py-3 font-extrabold text-slate-700 focus:bg-white focus:border-[#1cb0f6] outline-none transition-all cursor-pointer" />
                   </div>
                   
-                  <div className="mb-4 relative">
-                     <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-                     <input
-                        type="text"
-                        placeholder="Search chats..."
-                        value={sidebarSearch}
-                        onChange={e => setSidebarSearch(e.target.value)}
-                        className="w-full bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-white/10 rounded-[2rem] py-2.5 pl-10 pr-4 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500/50 transition-all shadow-[0_8px_30px_rgba(244,114,182,0.12)] dark:shadow-[0_8px_30px_rgba(244,114,182,0.04)] shadow-rose-100/50 dark:shadow-none"
-                     />
+                  <div className="p-5 flex flex-col gap-3">
+                      <label className="text-slate-400 font-extrabold text-[11px] uppercase tracking-widest block pl-1">থিম</label>
+                      <div className="flex gap-3">
+                          <button onClick={() => setTheme("light")} className={cn("flex-1 py-3.5 rounded-[16px] border-2 font-extrabold flex items-center justify-center gap-2 transition-all active:scale-95", theme === "light" ? "bg-[#1cb0f6]/10 border-[#1cb0f6] text-[#1cb0f6]" : "border-slate-200 text-slate-400 bg-white hover:bg-slate-50")}>
+                              <Sun className="w-5 h-5" /> লাইট
+                          </button>
+                          <button onClick={() => setTheme("dark")} className={cn("flex-1 py-3.5 rounded-[16px] border-2 font-extrabold flex items-center justify-center gap-2 transition-all active:scale-95", theme === "dark" ? "bg-[#1cb0f6]/10 border-[#1cb0f6] text-[#1cb0f6]" : "border-slate-200 text-slate-400 bg-white hover:bg-slate-50")}>
+                              <Moon className="w-5 h-5" /> ডার্ক
+                          </button>
+                      </div>
                   </div>
 
-                  <div className="bg-white dark:bg-slate-800 rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-[0_8px_30px_rgba(244,114,182,0.12)] dark:shadow-[0_8px_30px_rgba(244,114,182,0.04)] shadow-rose-100/50 dark:shadow-none flex flex-col p-1.5 pb-0 overflow-hidden">
-                     {chats.filter(c => c.title.toLowerCase().includes(sidebarSearch.toLowerCase())).slice(0, 5).map(chat => (
-                        <button key={chat.id} onClick={() => { setActiveChatId(chat.id); setCurrentView("chat"); setIsSidebarOpen(false); }} className={cn("w-full flex items-center gap-4 px-3 py-3.5 border-b border-slate-50 dark:border-white/5 transition-all text-left group", activeChatId === chat.id ? "bg-slate-50/50 dark:bg-white/5 rounded-[2rem] border-transparent" : "hover:bg-slate-50 dark:hover:bg-white/5")}>
-                           <div className="w-6 flex justify-center shrink-0">
-                               <MessageSquare className="w-[18px] h-[18px] text-rose-400 stroke-[1.5]" />
+              </div>
+              
+              <button onClick={() => setCurrentView("home")} className="w-full bg-white text-slate-400 hover:text-red-500 font-extrabold text-[15px] uppercase tracking-widest py-4 border-2 border-slate-200 hover:border-red-200 hover:bg-red-50 rounded-[20px] transition-all flex items-center justify-center gap-2 mb-4 active:scale-95 outline-none">
+                  <LogOut className="w-5 h-5" /> লগ আউট
+              </button>
+
+            </div>
+          )}
+
+          {currentView === "prompts" && (
+            <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col justify-center">
+              <h2 className="text-[22px] sm:text-2xl font-extrabold text-slate-700 mb-1">খসড়া মোড</h2>
+              <p className="text-slate-400 font-bold mb-4 sm:mb-6 text-[13px] sm:text-sm leading-snug">হুমায়রার জন্য একটি মোড বেছে নিন। এটি পুরো অ্যাপের থিম এবং তার স্বভাবে পরিবর্তন আনবে!</p>
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-auto mb-auto">
+                {(Object.entries(MODES) as [Mode, any][]).map(([key, modeData]) => {
+                   const isSelected = mode === key;
+                   return (
+                     <button
+                        key={key} 
+                        onClick={() => { setMode(key as Mode); setCurrentView("home"); }}
+                        className={cn(
+                          "relative rounded-[16px] sm:rounded-[20px] border-2 overflow-hidden flex flex-col transition-all active:scale-95 group shadow-sm hover:shadow-md h-full",
+                          isSelected 
+                            ? `${modeData.theme.lightBg} ${modeData.theme.primaryBorder}` 
+                            : "bg-white border-slate-200 hover:border-slate-300"
+                        )}
+                        style={isSelected ? { outline: `2px solid ${modeData.theme.shadowHex}`, outlineOffset: '2px' } : {}}
+                     >
+                        <div className="w-full h-[90px] sm:h-[110px] bg-slate-100 flex-shrink-0 relative overflow-hidden">
+                           <img src={modeData.image} alt={modeData.label} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                           {isSelected && (
+                              <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white flex items-center justify-center shadow-md z-10">
+                                 <Sparkles className={cn("w-3.5 h-3.5", modeData.theme.textLight)} />
+                              </div>
+                           )}
+                           <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                        <div className="p-2 sm:p-3 w-full flex-grow flex items-center justify-center border-t-2 border-slate-100/50">
+                           <h3 className={cn("font-extrabold text-[13px] sm:text-[15px] leading-tight", isSelected ? modeData.theme.textLight : "text-slate-700")}>{modeData.label}</h3>
+                        </div>
+                     </button>
+                   );
+                })}
+              </div>
+            </div>
+          )}
+
+          {currentView === "home" && (
+             <div className="flex-1 overflow-y-auto px-5 py-8 flex flex-col items-center">
+                <div className={cn("w-32 h-32 rounded-[32px] flex items-center justify-center mb-8 relative border-4 border-white", activeModeTheme.primary)} style={{ boxShadow: `0 8px 0 ${activeModeTheme.shadowHex}`}}>
+                   {mode && MODES[mode] ? (() => { const Icon = MODES[mode].icon; return <Icon className="w-16 h-16 text-white" />; })() : <Heart className="w-16 h-16 text-white fill-current" />}
+                   <div className="absolute -right-3 -top-3 w-8 h-8 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center animate-bounce shadow-sm text-amber-500 font-bold text-xs"><Sparkles className="w-4 h-4 fill-current"/></div>
+                </div>
+                <h2 className="text-[26px] font-extrabold text-slate-700 text-center mb-2">হ্যালো {userName}!</h2>
+                <p className="text-slate-400 font-bold text-center mb-8 px-4 leading-relaxed">আজ হুমায়রার সাথে জমিয়ে আড্ডা দিতে প্রস্তুত?</p>
+                
+                <button onClick={() => { if(mode) { createNewChat(); setCurrentView("chat"); } else { setCurrentView("prompts"); } }} className={cn("w-full text-white font-extrabold text-[15px] uppercase tracking-widest py-4 border-b-[4px] rounded-[20px] active:border-b-0 active:translate-y-[4px] transition-all flex items-center justify-center gap-2 mb-8", mode ? `${activeModeTheme.primary} ${activeModeTheme.primaryBorder}` : "bg-slate-300 border-slate-400 text-slate-500 cursor-not-allowed")}>
+                   {mode ? "আড্ডা শুরু করুন" : "আগে একটি মোড সিলেক্ট করুন"}
+                </button>
+                
+                <div className="w-full mb-10">
+                  <div className="flex items-center justify-between mb-4 px-1">
+                     <h3 className="text-slate-400 font-extrabold uppercase tracking-widest text-xs">আগের আড্ডাগুলো</h3>
+                  </div>
+                  <div className="space-y-3">
+                     {chats.slice(0, 5).map(chat => (
+                        <button key={chat.id} onClick={() => { setActiveChatId(chat.id); setCurrentView("chat"); }} className="w-full text-left bg-white border-2 border-slate-200 p-4 rounded-[20px] hover:bg-slate-50 active:scale-[0.98] transition-all outline-none flex items-center justify-between">
+                           <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-[16px] bg-sky-100 flex items-center justify-center text-sky-500">
+                                <MessageCircle className="w-6 h-6 stroke-[2.5]" />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="font-extrabold text-slate-700 text-base line-clamp-1">{chat.title}</span>
+                                <span className="text-xs font-bold text-slate-400 mt-0.5 uppercase">{chat.createdAt.toLocaleDateString()}</span>
+                              </div>
                            </div>
-                           <div className="flex-1 min-w-0 pr-2">
-                              <div className={cn("truncate text-[14.5px] font-medium transition-colors", activeChatId === chat.id ? "text-slate-900 dark:text-white" : "text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white")}>{chat.title}</div>
-                           </div>
-                           <div className="text-[11px] text-slate-400 font-medium whitespace-nowrap">{chat.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                           <ChevronRight className="w-6 h-6 text-slate-300" />
                         </button>
                      ))}
-                     {chats.filter(c => c.title.toLowerCase().includes(sidebarSearch.toLowerCase())).length > 5 && (
-                        <button className="w-full flex items-center justify-between px-3 py-4 text-[14.5px] font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors relative group">
-                           <span>View more results</span> <ChevronRight className="w-[18px] h-[18px] text-slate-500 group-hover:translate-x-0.5 transition-transform" />
-                        </button>
-                     )}
-                     {chats.filter(c => c.title.toLowerCase().includes(sidebarSearch.toLowerCase())).length === 0 && (
-                        <div className="px-4 py-4 text-[13px] text-slate-400 text-center">No chats found.</div>
-                     )}
+                     {chats.length === 0 && <div className="text-center text-slate-400 font-bold py-6 px-4 border-2 border-dashed border-slate-200 rounded-[20px]">কোনো আড্ডা নেই</div>}
                   </div>
-                </section>
+                </div>
+             </div>
+          )}
 
-                <section>
-                  <div className="px-1 mb-3 text-[13px] font-semibold text-slate-600 dark:text-slate-400 tracking-wide">Mood</div>
-                  <button onClick={() => setIsModelMenuOpen(true)} className="w-full flex items-center justify-between px-4 py-3.5 bg-white dark:bg-slate-800 rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-[0_8px_30px_rgba(244,114,182,0.12)] dark:shadow-[0_8px_30px_rgba(244,114,182,0.04)] shadow-rose-100/50 dark:shadow-none hover:bg-slate-50 transition-colors group">
-                     <div className="flex items-center gap-4">
-                         <div className="w-8 h-8 rounded-full flex items-center justify-center bg-rose-50 dark:bg-rose-500/10 text-rose-400">
-                            <currentModel.icon className="w-[18px] h-[18px] stroke-[1.5]" />
-                         </div>
-                         <span className="text-[14.5px] font-medium text-slate-900 dark:text-white">{currentModel.name} Mode</span>
+          {currentView === "chat" && (
+            <div className="flex-1 flex flex-col relative w-full h-full bg-white">
+              <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+                {(!activeChat || activeChat.messages.length === 0) && !isGenerating && (
+                  <div className="flex flex-col items-center justify-center h-48 mt-10">
+                     <div className="w-[88px] h-[88px] bg-slate-100 rounded-[24px] border-2 border-slate-200 flex items-center justify-center text-slate-300 mb-5 animate-[bounce_2s_infinite]">
+                        <Heart className="w-11 h-11 fill-current" />
                      </div>
-                     <div className="flex items-center gap-2">
-                         <div className={cn("w-4 h-4 rounded-full flex items-center justify-center", currentModel.color)}>
-                            <Sparkles className="w-2.5 h-2.5 text-white" />
-                         </div>
-                         <ChevronRight className="w-[18px] h-[18px] text-slate-500 group-hover:translate-x-0.5 transition-transform" />
-                     </div>
-                  </button>
-                </section>
-
-                <section>
-                  <div className="px-1 mb-3 text-[13px] font-semibold text-slate-600 dark:text-slate-400 tracking-wide">Tools & Settings</div>
-                  <div className="bg-white dark:bg-slate-800 rounded-[2rem] border border-slate-100 dark:border-white/5 shadow-[0_8px_30px_rgba(244,114,182,0.12)] dark:shadow-[0_8px_30px_rgba(244,114,182,0.04)] shadow-rose-100/50 dark:shadow-none flex flex-col p-1.5 pb-0 overflow-hidden">
-                     <button onClick={() => { setCurrentView("settings"); setIsSidebarOpen(false); }} className="w-full flex items-center justify-between px-4 py-3.5 border-b border-slate-50 dark:border-white/5 transition-all text-left group hover:bg-slate-50 dark:hover:bg-white/5">
-                        <div className="flex items-center gap-4">
-                           <div className="w-6 flex justify-center shrink-0">
-                               <Flower2 className="w-[18px] h-[18px] text-rose-400 stroke-[1.5]" />
-                           </div>
-                           <span className="text-[14.5px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 group-hover:dark:text-white transition-colors">Mood Settings</span>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                     </button>
-                     
-                     <button onClick={() => setTheme(theme === "light" ? "dark" : "light")} className="w-full flex items-center justify-between px-4 py-3.5 border-b border-slate-50 dark:border-white/5 transition-all text-left group hover:bg-slate-50 dark:hover:bg-white/5">
-                        <div className="flex items-center gap-4">
-                           <div className="w-6 flex justify-center shrink-0">
-                               <Sun className="w-[18px] h-[18px] text-slate-600 dark:text-slate-400 stroke-[1.5]" />
-                           </div>
-                           <span className="text-[14.5px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 group-hover:dark:text-white transition-colors">Theme</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                           <span className="text-[13px] text-slate-400 capitalize">{theme}</span>
-                           <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                        </div>
-                     </button>
-                     
-                     <button className="w-full flex items-center justify-between px-4 py-3.5 border-b border-slate-50 dark:border-white/5 transition-all text-left group hover:bg-slate-50 dark:hover:bg-white/5">
-                        <div className="flex items-center gap-4">
-                           <div className="w-6 flex justify-center shrink-0">
-                               <Brain className="w-[18px] h-[18px] text-slate-600 dark:text-slate-400 stroke-[1.5]" />
-                           </div>
-                           <span className="text-[14.5px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 group-hover:dark:text-white transition-colors">Memory</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                           <span className="text-[13px] text-slate-500 font-medium">On</span>
-                           <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                        </div>
-                     </button>
-
-                     <button onClick={() => { setCurrentView("prompts"); setIsSidebarOpen(false); }} className="w-full flex items-center justify-between px-4 py-3.5 border-b border-slate-50 dark:border-white/5 transition-all text-left group hover:bg-slate-50 dark:hover:bg-white/5">
-                        <div className="flex items-center gap-4">
-                           <div className="w-6 flex justify-center shrink-0">
-                               <SlidersHorizontal className="w-[18px] h-[18px] text-slate-600 dark:text-slate-400 stroke-[1.5]" />
-                           </div>
-                           <span className="text-[14.5px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 group-hover:dark:text-white transition-colors">Customize Prompts</span>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                     </button>
-
-                     <button className="w-full flex items-center justify-between px-4 py-3.5 border-b border-slate-50 dark:border-white/5 transition-all text-left group hover:bg-slate-50 dark:hover:bg-white/5">
-                        <div className="flex items-center gap-4">
-                           <div className="w-6 flex justify-center shrink-0">
-                               <GlobeIcon className="w-[18px] h-[18px] text-slate-600 dark:text-slate-400 stroke-[1.5]" />
-                           </div>
-                           <span className="text-[14.5px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 group-hover:dark:text-white transition-colors">Language</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                           <span className="text-[13px] text-slate-400">বাংলা</span>
-                           <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                        </div>
-                     </button>
-
-                     <button className="w-full flex items-center justify-between px-4 py-3.5 pb-4 transition-all text-left group hover:bg-slate-50 dark:hover:bg-white/5 rounded-b-[24px]">
-                        <div className="flex items-center gap-4">
-                           <div className="w-6 flex justify-center shrink-0">
-                               <MessageSquare className="w-[18px] h-[18px] text-slate-600 dark:text-slate-400 stroke-[1.5]" />
-                           </div>
-                           <span className="text-[14.5px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 group-hover:dark:text-white transition-colors">Help & Support</span>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                     </button>
+                     <span className="font-extrabold text-slate-400 text-lg">হুমায়রাকে হ্যালো বলুন!</span>
                   </div>
-                </section>
+                )}
                 
-              </div>
-              
-              <div className="px-6 pb-8 pt-2">
-                 <button className="w-full flex items-center justify-center gap-2.5 p-3.5 bg-white dark:bg-slate-800 rounded-[2rem] border border-slate-100 dark:border-white/5 text-red-500 hover:bg-red-50 hover:border-red-100 dark:hover:bg-red-500/10 transition-all font-semibold shadow-[0_8px_30px_rgba(244,114,182,0.12)] dark:shadow-[0_8px_30px_rgba(244,114,182,0.04)] shadow-rose-100/50 dark:shadow-none">
-                    <LogOut className="w-[18px] h-[18px] stroke-[2.5]" />
-                    <span className="text-[15px]">Log Out</span>
-                 </button>
-              </div>
-              
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* Live Companion View */}
-      <AnimatePresence>
-        {isLiveActive && (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed inset-0 bg-slate-950 z-[200] flex flex-col p-6 overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_rgba(244,114,182,0.1),_transparent)]" />
-            
-            <header className="flex items-center justify-between z-10 shrink-0">
-              <button onClick={() => setIsLiveActive(false)} className="px-4 py-2 bg-white/5 text-white/60 hover:text-white rounded-full text-xs font-bold tracking-widest uppercase flex items-center gap-2">
-                <ChevronRight className="w-4 h-4 rotate-180" /> Back to Chat
-              </button>
-              <div className="text-xs font-black text-rose-400 uppercase tracking-[4px]">ORIGIN LIVE</div>
-              <div className="w-10 h-10 bg-white/5 rounded-full" />
-            </header>
-
-            <div className="flex-1 flex flex-col items-center justify-center gap-12 z-10 p-4">
-              <div className="relative">
-                <motion.div animate={{ scale: [1, 1.2, 1], rotate: [0, 5, -5, 0] }} transition={{ duration: 5, repeat: Infinity }} className="w-56 h-56 rounded-full bg-rose-500/10 border border-rose-500/20 backdrop-blur-3xl flex items-center justify-center relative">
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-rose-500/20 via-pink-500/20 animate-spin-slow" />
-                  <div className="w-44 h-44 rounded-full bg-slate-900 border border-white/5 flex items-center justify-center shadow-2xl relative">
-                    <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-rose-600 to-pink-600 opacity-60 flex items-center justify-center">
-                      <Heart className="w-12 h-12 text-white/50" />
+                {activeChat?.messages.map((m) => (
+                  <div key={m.id} className={cn("flex w-full", m.role === "user" ? "justify-end" : "justify-start")}>
+                    {m.role === "assistant" && (
+                       <div className={cn("w-11 h-11 rounded-full border-2 shadow-sm shrink-0 mr-3 self-end flex items-center justify-center text-white overflow-hidden relative", activeModeTheme.primaryBorder, activeModeTheme.primary)}>
+    {mode && MODES[mode] ? (() => { const Icon = MODES[mode].icon; return <Icon className="w-6 h-6" />; })() : <Heart className="w-6 h-6" />}
+</div>
+                    )}
+                    
+                    <div className={cn("max-w-[75%] relative flex flex-col", m.role === "user" ? "order-1 items-end" : "order-2 items-start")}>
+                       <div className={cn("px-5 py-4 rounded-[20px] font-bold text-[16px] leading-[1.6] relative z-10 border-2", 
+                         m.role === "user" 
+                           ? `${activeModeTheme.primary} ${activeModeTheme.primaryBorder} text-white rounded-br-[4px]` 
+                           : "bg-white text-slate-700 border-slate-200 rounded-bl-[4px]"
+                       )}>
+                          {m.role === "assistant" ? (
+                            <div className="markdown-content" dangerouslySetInnerHTML={{ __html: parseThinkingAndSteps(m.content).html }} />
+                          ) : (
+                            <p className="whitespace-pre-wrap">{m.content}</p>
+                          )}
+                       </div>
                     </div>
-                    <div className="absolute inset-x-0 bottom-8 flex justify-center gap-1">
-                      {[...Array(5)].map((_, i) => <motion.div key={i} animate={{ height: [2, 16, 2] }} transition={{ duration: 0.4, repeat: Infinity, delay: i * 0.1 }} className="w-1 bg-white rounded-full" />)}
-                    </div>
+                    {m.role === "user" && (
+                       <div className="w-11 h-11 rounded-full border-2 border-slate-200 shadow-sm shrink-0 ml-3 self-end flex items-center justify-center bg-slate-100 text-slate-400 overflow-hidden relative order-3">
+                          {userProfilePic ? <img src={userProfilePic} alt="User" className="w-full h-full object-cover" /> : <User className="w-6 h-6" />}
+                       </div>
+                    )}
                   </div>
-                </motion.div>
+                ))}
+
+                {isGenerating && (
+                  <div className="flex w-full justify-start mt-4">
+                     <div className="w-11 h-11 rounded-full border-2 border-slate-200 shadow-sm shrink-0 mr-3 self-end flex items-center justify-center bg-[#58cc02] text-white overflow-hidden">
+                        <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=256&h=256" alt="A" className="w-full h-full object-cover" />
+                     </div>
+                     <div className="max-w-[75%]">
+                       <div className="px-5 py-4 rounded-[20px] rounded-bl-[4px] border-2 border-slate-200 bg-white text-slate-400 font-bold flex items-center gap-1.5 h-[58px]">
+                          <div className="w-2.5 h-2.5 rounded-full bg-slate-300 animate-bounce" style={{animationDelay: "0ms"}}/>
+                          <div className="w-2.5 h-2.5 rounded-full bg-slate-300 animate-bounce" style={{animationDelay: "150ms"}}/>
+                          <div className="w-2.5 h-2.5 rounded-full bg-slate-300 animate-bounce" style={{animationDelay: "300ms"}}/>
+                       </div>
+                     </div>
+                  </div>
+                )}
               </div>
-              <div className="text-center space-y-4">
-                <h2 className="text-3xl font-display italic font-bold text-white tracking-tight">I'm Listening...</h2>
-                <p className="text-white/40 max-w-xs mx-auto text-sm leading-relaxed">Humaira is ready and listening to your voice. Just speak freely.</p>
+
+              {/* Chat Input Area */}
+              <div className="p-4 bg-white border-t-2 border-slate-200 shrink-0">
+                <div className="flex gap-3 items-end">
+                   <div className="flex-1 bg-slate-100 border-2 border-slate-200 rounded-[20px] flex items-end focus-within:bg-white focus-within:border-[#1cb0f6] transition-colors">
+                     <textarea
+                       ref={textareaRef}
+                       rows={1}
+                       value={inputValue}
+                       onChange={(e) => {
+                         handleInputChange(e);
+                         e.target.style.height = "auto";
+                         e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                       }}
+                       onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !isGenerating) { e.preventDefault(); handleSendMessage(); } }}
+                       placeholder={mode ? "হুমায়রাকে মেসেজ দিন..." : "আগে একটি মোড সিলেক্ট করুন..."} disabled={!mode}
+                       className="w-full bg-transparent px-4 py-3 placeholder-slate-400 text-slate-700 font-extrabold outline-none resize-none max-h-32 text-base"
+                     />
+                   </div>
+                   {isGenerating ? (
+                      <button onClick={() => abortControllerRef.current?.abort()} className="w-[52px] h-[52px] shrink-0 bg-slate-200 text-slate-500 rounded-[16px] flex items-center justify-center font-bold border-b-[4px] border-slate-300 active:border-b-0 active:translate-y-[4px] outline-none transition-all">
+                         <Square className="w-6 h-6 fill-current rounded-[4px]" />
+                      </button>
+                   ) : (
+                      <button onClick={() => handleSendMessage()} disabled={!inputValue.trim()} className={cn("w-[52px] h-[52px] shrink-0 disabled:bg-slate-200 disabled:border-slate-300 disabled:text-slate-400 disabled:translate-y-[4px] disabled:border-b-0 text-white rounded-[16px] flex items-center justify-center font-bold border-b-[4px] active:border-b-0 active:translate-y-[4px] outline-none transition-all", activeModeTheme.primary, activeModeTheme.primaryBorder)}> 
+                         <Send className="w-5 h-5 ml-1" />
+                      </button>
+                   )}
+                </div>
               </div>
             </div>
+          )}
+        </main>
 
-            <footer className="z-10 shrink-0 flex items-center justify-center gap-6 pb-8">
-              <button className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:bg-white/10 transition-all"><VideoOff className="w-6 h-6" /></button>
-              <button onClick={() => setIsLiveActive(false)} className="w-20 h-20 rounded-full bg-red-600 flex items-center justify-center text-white shadow-[0_0_40px_rgba(220,38,38,0.3)] hover:scale-105 active:scale-95 transition-all"><PhoneOff className="w-8 h-8" /></button>
-              <button className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:bg-white/10 transition-all"><MicOff className="w-6 h-6" /></button>
-            </footer>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        {/* Bottom Navigation */}
+        <nav className="h-[76px] shrink-0 border-t-2 border-slate-200 bg-white flex items-center justify-around px-2 z-30">
+           <button onClick={() => setCurrentView("home")} className={cn("flex flex-col items-center gap-1 w-[80px] p-2 rounded-2xl border-2 border-transparent transition-all", currentView === "home" ? activeModeTheme.activeNav : "text-slate-400 hover:bg-slate-50")}>
+              <Layers className={cn("w-[26px] h-[26px]", currentView === "home" && "fill-current opacity-20")} />
+              <span className="text-[10px] uppercase tracking-widest font-extrabold mt-1">শিখুন</span>
+           </button>
+           <button onClick={() => setCurrentView("chat")} className={cn("flex flex-col items-center gap-1 w-[80px] p-2 rounded-2xl border-2 border-transparent transition-all", currentView === "chat" ? activeModeTheme.activeNav : "text-slate-400 hover:bg-slate-50")}>
+              <MessageCircle className={cn("w-[26px] h-[26px]", currentView === "chat" && "fill-current opacity-20")} />
+              <span className="text-[10px] uppercase tracking-widest font-extrabold mt-1">চ্যাট</span>
+           </button>
+           <button onClick={() => setCurrentView("prompts")} className={cn("flex flex-col items-center gap-1 w-[80px] p-2 rounded-2xl border-2 border-transparent transition-all", currentView === "prompts" ? activeModeTheme.activeNav : "text-slate-400 hover:bg-slate-50")}>
+              <Sparkles className={cn("w-[26px] h-[26px]", currentView === "prompts" && "fill-current opacity-20")} />
+              <span className="text-[10px] uppercase tracking-widest font-extrabold mt-1">মোড</span>
+           </button>
+           <button onClick={() => setCurrentView("settings")} className={cn("flex flex-col items-center gap-1 w-[80px] p-2 rounded-2xl border-2 border-transparent transition-all", currentView === "settings" ? activeModeTheme.activeNav : "text-slate-400 hover:bg-slate-50")}>
+              <User className={cn("w-[26px] h-[26px]", currentView === "settings" && "fill-current opacity-20")} />
+              <span className="text-[10px] uppercase tracking-widest font-extrabold mt-1">প্রোফাইল</span>
+           </button>
+        </nav>
 
-      <style>{`
-        .markdown-content p { margin-bottom: 1.25rem; }
-        .markdown-content p:last-child { margin-bottom: 0; }
-        .markdown-content h1, .markdown-content h2, .markdown-content h3 { font-family: var(--font-display); font-weight: 800; color: #1e293b; margin: 1.5rem 0 0.75rem; line-height: 1.2; }
-        .dark .markdown-content h1, .dark .markdown-content h2, .dark .markdown-content h3 { color: white; }
-        .markdown-content pre { background: #1e293b; color: #e2e8f0; padding: 1.25rem; border-radius: 1.25rem; overflow-x: auto; margin: 1.5rem 0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); border: 1px solid rgba(255,255,255,0.05); }
-        .markdown-content code { font-family: var(--font-mono); font-size: 0.9rem; background: rgba(0,0,0,0.05); padding: 0.2rem 0.4rem; border-radius: 0.375rem; color: #4f46e5; font-weight: 600; }
-        .dark .markdown-content code { background: rgba(255,255,255,0.05); color: #818cf8; }
-        .formula-box { background: linear-gradient(135deg, #f8fafc, #f1f5f9); padding: 1.25rem; border-radius: 1.25rem; border: 1px solid #e2e8f0; margin: 1.5rem 0; font-family: var(--font-display); }
-        .dark .formula-box { background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.05); }
-        .formula-header { display: flex; items-center; gap: 0.5rem; text-[10px] font-black uppercase tracking-widest text-rose-500 mb-2; }
-        .formula-content { font-size: 1.1rem; color: #1e293b; font-weight: 600; }
-        .dark .formula-content { color: white; }
-        .note-box { background: #fef9c3; padding: 1rem; border-radius: 1rem; border-left: 4px solid #facc15; margin: 1.25rem 0; font-size: 0.9rem; color: #854d0e; }
-        .dark .note-box { background: rgba(250, 204, 21, 0.05); color: #fef9c3; border-color: #facc15; }
-        .step-line { display: flex; align-items: flex-start; gap: 0.75rem; margin: 1.25rem 0; }
-        .step-num { shrink-0 flex items-center justify-center w-6 h-6 bg-rose-600 text-white rounded-full text-[10px] font-black; margin-top: 0.25rem; }
-        .step-text { font-weight: 700; color: #1e293b; }
-        .dark .step-text { color: white; }
-        .animate-spin-slow { animation: spin 8s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        ::-webkit-scrollbar { width: 0px; }
-      `}</style>
+        <style>{`
+          .markdown-content p { margin-bottom: 0.75rem; }
+          .markdown-content p:last-child { margin-bottom: 0; }
+          .markdown-content h1, .markdown-content h2, .markdown-content h3 { font-family: 'Nunito', sans-serif; font-weight: 900; margin: 1rem 0 0.5rem; line-height: 1.2; color: #334155;}
+          .markdown-content strong { font-weight: 800; color: inherit; }
+          .markdown-content code { background: rgba(0,0,0,0.05); padding: 0.2rem 0.4rem; border-radius: 8px; font-family: monospace; font-weight: 700; color: #1cb0f6; }
+          ::-webkit-scrollbar { width: 0px; }
+        `}</style>
+      </div>
     </div>
   );
 }
