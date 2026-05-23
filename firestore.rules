@@ -1,0 +1,103 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email == 'hmrobiulislam75@gmail.com' && request.auth.token.email_verified == true) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+    
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidConfig(data) {
+      return data.keys().size() >= 1 &&
+        (!('appName' in data) || (data.appName is string && data.appName.size() <= 100)) &&
+        (!('appDescription' in data) || (data.appDescription is string && data.appDescription.size() <= 1000)) &&
+        (!('appImage' in data) || (data.appImage is string && data.appImage.size() <= 500)) &&
+        (!('defaultMode' in data) || (data.defaultMode is string && data.defaultMode.size() <= 100));
+    }
+
+    function isValidMode(data) {
+      return data.keys().size() >= 2 &&
+        (!('label' in data) || (data.label is string && data.label.size() <= 100)) &&
+        (!('prompt' in data) || (data.prompt is string && data.prompt.size() <= 2000)) &&
+        (!('icon' in data) || (data.icon is string && data.icon.size() <= 100)) &&
+        (!('category' in data) || (data.category is string && data.category.size() <= 100)) &&
+        (!('image' in data) || (data.image is string && data.image.size() <= 500)) &&
+        (!('theme' in data) || data.theme is map);
+    }
+
+    function isValidUser(data) {
+      return data.keys().size() >= 1 &&
+        (!('role' in data) || data.role in ['user', 'admin']) &&
+        (!('name' in data) || (data.name is string && data.name.size() <= 100)) &&
+        (!('email' in data) || (data.email is string && data.email.size() <= 200)) &&
+        (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 500)) &&
+        (!('loveLanguage' in data) || (data.loveLanguage is string && data.loveLanguage.size() <= 100)) &&
+        (!('anniversaryDate' in data) || (data.anniversaryDate is string && data.anniversaryDate.size() <= 30)) &&
+        (!('xp' in data) || data.xp is number) &&
+        (!('streak' in data) || data.streak is number) &&
+        (!('lastLoginDate' in data) || (data.lastLoginDate is string && data.lastLoginDate.size() <= 30));
+    }
+
+    function isValidChat(data) {
+      return data.keys().size() >= 2 &&
+        ('id' in data && data.id is string && data.id.size() <= 128) &&
+        ('mode' in data && data.mode is string && data.mode.size() <= 100) &&
+        (!('modelId' in data) || (data.modelId is string && data.modelId.size() <= 100)) &&
+        (!('messages' in data) || data.messages is list) &&
+        (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 30)) &&
+        (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 30));
+    }
+
+    match /config/{documentId} {
+      allow get, list: if true;
+      allow create: if isValidId(documentId) && isAdmin() && isValidConfig(incoming());
+      allow update: if isValidId(documentId) && (isAdmin() && isValidConfig(incoming()));
+      allow delete: if isValidId(documentId) && isAdmin();
+    }
+
+    match /modes/{modeId} {
+      allow get, list: if true;
+      allow create: if isValidId(modeId) && isAdmin() && isValidMode(incoming());
+      allow update: if isValidId(modeId) && (isAdmin() && isValidMode(incoming()));
+      allow delete: if isValidId(modeId) && isAdmin();
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (userId == request.auth.uid || isAdmin());
+      allow list: if isAdmin();
+      
+      allow create: if isValidId(userId) && userId == request.auth.uid && isValidUser(incoming()) && 
+        (incoming().role == 'user' || isAdmin());
+        
+      allow update: if isValidId(userId) && (
+        (isAdmin() && isValidUser(incoming())) || 
+        (
+          userId == request.auth.uid && 
+          isValidUser(incoming()) && 
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'photoURL', 'loveLanguage', 'anniversaryDate', 'xp', 'streak', 'lastLoginDate']) &&
+          incoming().role == existing().role
+        )
+      );
+      
+      allow delete: if isValidId(userId) && isAdmin();
+      
+      match /chats/{chatId} {
+        allow get: if isValidId(chatId) && userId == request.auth.uid;
+        allow list: if userId == request.auth.uid;
+        allow create: if isValidId(chatId) && userId == request.auth.uid && isValidChat(incoming());
+        allow update: if isValidId(chatId) && userId == request.auth.uid && isValidChat(incoming());
+        allow delete: if isValidId(chatId) && userId == request.auth.uid;
+      }
+    }
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "entities": {
+    "AppConfig": {
+      "title": "App Configuration",
+      "description": "Global configuration for the entire application, editable by admins.",
+      "type": "object",
+      "properties": {
+        "appName": { "type": "string" },
+        "appDescription": { "type": "string" },
+        "appImage": { "type": "string" },
+        "defaultMode": { "type": "string" }
+      },
+      "required": ["appName"]
+    },
+    "Mode": {
+      "title": "Chatbot Mode",
+      "description": "A specific personality/mode for the chatbot.",
+      "type": "object",
+      "properties": {
+        "label": { "type": "string" },
+        "icon": { "type": "string" },
+        "category": { "type": "string" },
+        "prompt": { "type": "string" },
+        "theme": {
+          "type": "object",
+          "properties": {
+            "primary": { "type": "string" },
+            "primaryHex": { "type": "string" },
+            "primaryBorder": { "type": "string" },
+            "primaryBorderB": { "type": "string" },
+            "lightBg": { "type": "string" },
+            "textLight": { "type": "string" },
+            "shadowHex": { "type": "string" },
+            "lightBgBorder": { "type": "string" },
+            "activeNav": { "type": "string" }
+          }
+        },
+        "image": { "type": "string" }
+      },
+      "required": ["label", "prompt"]
+    },
+    "User": {
+      "title": "User Profile",
+      "description": "Information about a user, including profile settings and gamification stats.",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "loveLanguage": { "type": "string" },
+        "anniversaryDate": { "type": "string" },
+        "xp": { "type": "number" },
+        "streak": { "type": "number" },
+        "lastLoginDate": { "type": "string" }
+      },
+      "required": ["role"]
+    },
+    "Chat": {
+      "title": "User Chat",
+      "description": "A conversation history.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "mode": { "type": "string" },
+        "modelId": { "type": "string" },
+        "messages": { "type": "array" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "mode"]
+    }
+  },
+  "firestore": {
+    "config/{documentId}": {
+      "schema": { "$ref": "#/entities/AppConfig" },
+      "description": "Global app config settings."
+    },
+    "modes/{modeId}": {
+      "schema": { "$ref": "#/entities/Mode" },
+      "description": "Chatbot modes."
+    },
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles."
+    },
+    "users/{userId}/chats/{chatId}": {
+      "schema": { "$ref": "#/entities/Chat" },
+      "description": "User specific chat histories."
+    }
+  }
+}

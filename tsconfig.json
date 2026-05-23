@@ -22,5 +22,6 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": ["fix_sidebar.cjs", "fix_contrast.cjs", "seed.js"]
 }
