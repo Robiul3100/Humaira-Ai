@@ -10,6 +10,8 @@ import { cn } from "./lib/utils";
 import { auth, googleProvider, db, handleFirestoreError, OperationType } from "./lib/firebase";
 import { signInWithPopup, signOut, onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { doc, getDoc, setDoc, onSnapshot, updateDoc, collection, getDocs, deleteDoc } from "firebase/firestore";
+// @ts-ignore
+import humairaAvatar from "./assets/images/humaira_avatar_1779582018453.png";
 
 // --- Types & Constants ---
 type Mode = "ROMANTIC" | "ROAST" | "FRIENDLY_ROAST" | "ROAST_MOTIVATE" | "NORMAL" | "ISLAMIC" | "LEGEND";
@@ -37,28 +39,160 @@ const MODELS = [
 ];
 
 const MODES: Record<Mode, { label: string; icon: any; category: string; prompt: string; theme: any; isPro?: boolean }> = {
-  ROMANTIC: { label: "Romantic Mode", icon: Heart, category: "ROAST MODES", prompt: "You are Humaira, madly in love with the user. You speak very romantically, in Bengali.", theme: { primary: "bg-rose-500", textLight: "text-rose-500" } },
-  ROAST: { label: "Roast Mode", icon: Flame, category: "ROAST MODES", prompt: "You are Humaira, a ruthless roaster. You roast the user heavily in fun Bengali.", theme: { primary: "bg-amber-500", textLight: "text-amber-500" } },
-  FRIENDLY_ROAST: { label: "Friendly Roast", icon: Smile, category: "ROAST MODES", prompt: "You are Humaira. You roast playfully but show you care in Bengali.", theme: { primary: "bg-orange-500", textLight: "text-orange-500" } },
-  ROAST_MOTIVATE: { label: "Roast + Motivate", icon: Trophy, category: "ROAST MODES", prompt: "You are Humaira. You roast the user for being lazy, then motivate them fiercely in Bengali.", theme: { primary: "bg-indigo-500", textLight: "text-indigo-500" } },
-  NORMAL: { label: "Normal Chat", icon: MessageCircle, category: "NORMAL", prompt: "You are Humaira, a helpful normal AI assistant, replying in Bengali.", theme: { primary: "bg-slate-500", textLight: "text-slate-500" } },
-  ISLAMIC: { label: "Islamic Mode", icon: Moon, category: "PRO MODES 👑", prompt: "You are Humaira. You give Islamic guidance based on Quran and Sunnah in Bengali.", theme: { primary: "bg-emerald-500", textLight: "text-emerald-500" }, isPro: true },
-  LEGEND: { label: "Legend Mode", icon: Anchor, category: "PRO MODES 👑", prompt: "You are Humaira, highly confident legend persona in Bengali.", theme: { primary: "bg-blue-500", textLight: "text-blue-500" }, isPro: true },
+  ROMANTIC: { label: "রোমান্টিক প্রেম 💕", icon: Heart, category: "রোস্ট মোডসমূহ 🔥", prompt: "You are Humaira, madly in love with the user. You speak very romantically, in Bengali.", theme: { primary: "bg-rose-500", textLight: "text-rose-500" } },
+  ROAST: { label: "কড়া রোস্ট বা পচন 🔥", icon: Flame, category: "রোস্ট মোডসমূহ 🔥", prompt: "You are Humaira, a ruthless roaster. You roast the user heavily in fun Bengali.", theme: { primary: "bg-amber-500", textLight: "text-amber-500" } },
+  FRIENDLY_ROAST: { label: "মিষ্টি পচানি 😉", icon: Smile, category: "রোস্ট মোডসমূহ 🔥", prompt: "You are Humaira. You roast playfully but show you care in Bengali.", theme: { primary: "bg-orange-500", textLight: "text-orange-500" } },
+  ROAST_MOTIVATE: { label: "পচানি + মোтивнойেশন 💪", icon: Trophy, category: "রোস্ট মোডসমূহ 🔥", prompt: "You are Humaira. You roast the user for being lazy, then motivate them fiercely in Bengali.", theme: { primary: "bg-indigo-500", textLight: "text-indigo-500" } },
+  NORMAL: { label: "নরমাল চ্যাট 💬", icon: MessageCircle, category: "সাধারণ মোড 💬", prompt: "You are Humaira, a helpful normal AI assistant, replying in Bengali.", theme: { primary: "bg-slate-500", textLight: "text-slate-500" } },
+  ISLAMIC: { label: "ইসলামিক গাইডেন্স 🌙", icon: Moon, category: "টুলস ও ভিআইপি মোডসমূহ 👑", prompt: "You are Humaira. You give Islamic guidance based on Quran and Sunnah in Bengali.", theme: { primary: "bg-emerald-500", textLight: "text-emerald-500" }, isPro: true },
+  LEGEND: { label: "লিজেন্ড মুড 😎", icon: Anchor, category: "টুলস ও ভিআইপি মোডসমূহ 👑", prompt: "You are Humaira, highly confident legend persona in Bengali.", theme: { primary: "bg-blue-500", textLight: "text-blue-500" }, isPro: true },
+};
+
+const MODE_THEMES: Record<Mode, {
+  accent: string;
+  gradient: string;
+  bgLight: string;
+  bgDark: string;
+  borderLight: string;
+  borderDark: string;
+  text: string;
+  textDark: string;
+  buttonBg: string;
+}> = {
+  ROMANTIC: {
+    accent: '#ec4899',
+    gradient: 'from-pink-500 via-rose-500 to-pink-600',
+    bgLight: 'bg-rose-50/70',
+    bgDark: 'bg-rose-950/20',
+    borderLight: 'border-rose-200',
+    borderDark: 'border-rose-900/30',
+    text: 'text-rose-600',
+    textDark: 'text-rose-400',
+    buttonBg: 'from-rose-500 to-pink-500',
+  },
+  ROAST: {
+    accent: '#ef4444',
+    gradient: 'from-amber-600 via-orange-500 to-red-600',
+    bgLight: 'bg-red-50/70',
+    bgDark: 'bg-red-950/20',
+    borderLight: 'border-red-200',
+    borderDark: 'border-red-900/30',
+    text: 'text-red-600',
+    textDark: 'text-red-400',
+    buttonBg: 'from-amber-600 to-red-500',
+  },
+  FRIENDLY_ROAST: {
+    accent: '#f97316',
+    gradient: 'from-orange-500 via-amber-400 to-yellow-500',
+    bgLight: 'bg-orange-50/70',
+    bgDark: 'bg-orange-950/20',
+    borderLight: 'border-orange-200',
+    borderDark: 'border-orange-900/30',
+    text: 'text-orange-600',
+    textDark: 'text-orange-400',
+    buttonBg: 'from-orange-500 to-amber-500',
+  },
+  ROAST_MOTIVATE: {
+    accent: '#6366f1',
+    gradient: 'from-indigo-500 via-purple-500 to-pink-500',
+    bgLight: 'bg-indigo-50/70',
+    bgDark: 'bg-indigo-950/20',
+    borderLight: 'border-indigo-200',
+    borderDark: 'border-indigo-900/30',
+    text: 'text-indigo-600',
+    textDark: 'text-indigo-400',
+    buttonBg: 'from-indigo-500 to-purple-500',
+  },
+  NORMAL: {
+    accent: '#f97316',
+    gradient: 'from-[#f97316] via-orange-500 to-pink-500',
+    bgLight: 'bg-orange-50/70',
+    bgDark: 'bg-orange-950/10',
+    borderLight: 'border-orange-200',
+    borderDark: 'border-orange-900/30',
+    text: 'text-orange-600',
+    textDark: 'text-orange-400',
+    buttonBg: 'from-orange-500 to-[#f97316]',
+  },
+  ISLAMIC: {
+    accent: '#10b981',
+    gradient: 'from-emerald-600 via-teal-500 to-green-600',
+    bgLight: 'bg-emerald-50/70',
+    bgDark: 'bg-emerald-950/20',
+    borderLight: 'border-emerald-200',
+    borderDark: 'border-emerald-900/40',
+    text: 'text-emerald-600',
+    textDark: 'text-emerald-400',
+    buttonBg: 'from-emerald-600 to-teal-500',
+  },
+  LEGEND: {
+    accent: '#3b82f6',
+    gradient: 'from-blue-600 via-sky-500 to-indigo-600',
+    bgLight: 'bg-blue-50/70',
+    bgDark: 'bg-blue-950/20',
+    borderLight: 'border-blue-200',
+    borderDark: 'border-blue-900/30',
+    text: 'text-blue-600',
+    textDark: 'text-blue-400',
+    buttonBg: 'from-blue-600 to-sky-500',
+  }
 };
 
 const parseThinkingAndSteps = (content: string) => {
-    return { html: DOMPurify.sanitize(marked.parse(content) as string), reasoning: "" };
+    return { __html: DOMPurify.sanitize(marked.parse(content) as string), reasoning: "" };
+};
+
+const SkeletonShimmer = ({ theme }: { theme: "light" | "dark" }) => {
+  return (
+    <div className="flex w-full justify-start items-end gap-2.5 mt-2 animate-pulse">
+      <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-800 flex-shrink-0" />
+      <div className={cn(
+        "px-5 py-4 w-[280px] max-w-[80%] rounded-[20px] rounded-tl-sm shadow-sm border space-y-3 relative overflow-hidden",
+        theme === "dark" ? "bg-gray-800/80 border-gray-700/60" : "bg-white border-gray-100"
+      )}>
+        <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded-md w-11/12 shimmer-bg" />
+        <div className="h-3.5 bg-gray-300/80 dark:bg-gray-750 rounded-md w-5/6 shimmer-bg" />
+        <div className="h-3 bg-gray-200 dark:bg-gray-800 rounded-md w-2/3 shimmer-bg" />
+      </div>
+    </div>
+  );
+};
+
+const TypingIndicator = ({ theme }: { theme: "light" | "dark" }) => {
+  return (
+    <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold text-gray-500 bg-gray-100/70 dark:bg-gray-800/50 dark:text-gray-400 self-start animate-fade-in select-none max-w-max border border-gray-100/30 dark:border-gray-800/10 shadow-sm">
+      <span className="relative flex h-2 w-2">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#f97316] opacity-75"></span>
+        <span className="relative inline-flex rounded-full h-2 w-2 bg-[#f97316]"></span>
+      </span>
+      <span>হুমায়রা লিখছে</span>
+      <div className="flex items-center gap-0.5 ml-1">
+        <span className="w-1.5 h-1.5 bg-gray-500 dark:bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+        <span className="w-1.5 h-1.5 bg-gray-500 dark:bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+        <span className="w-1.5 h-1.5 bg-gray-500 dark:bg-gray-400 rounded-full animate-bounce"></span>
+      </div>
+    </div>
+  );
 };
 
 export default function App() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   
-  const [mode, setMode] = useState<Mode>("NORMAL");
+  const [mode, setMode] = useState<Mode>(() => {
+    try {
+      const saved = localStorage.getItem("selectedMode");
+      if (saved && Object.keys(MODES).includes(saved)) {
+        return saved as Mode;
+      }
+    } catch (e) {}
+    return "NORMAL";
+  });
   const [currentModel, setCurrentModel] = useState(MODELS[0]);
   
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [isModeSelectorOpen, setIsModeSelectorOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   
@@ -66,6 +200,9 @@ export default function App() {
   const [userRole, setUserRole] = useState<"user"|"admin">("user");
   const [userName, setUserName] = useState("Ayan");
   const [userProfilePic, setUserProfilePic] = useState("");
+  const [aiAvatarSeed, setAiAvatarSeed] = useState(() => {
+    return localStorage.getItem("aiAvatarSeed") || "Humaira";
+  });
   const [xp, setXp] = useState(1250);
   const [loveLanguage, setLoveLanguage] = useState("Words of Affirmation");
   const [anniversaryDate, setAnniversaryDate] = useState("");
@@ -75,20 +212,61 @@ export default function App() {
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Draft
+  // Draft and Persona Mode synchronization
   useEffect(() => {
+    // 1. Sync drafts
     const draft = localStorage.getItem(`chatDraft_${activeChatId || 'home'}`);
     if (draft !== null) setInputValue(draft);
     else setInputValue("");
-  }, [activeChatId]);
+
+    // 2. Sync selected mode (persona)
+    if (activeChatId) {
+      const currentChat = chats.find(c => c.id === activeChatId);
+      if (currentChat && currentChat.mode) {
+        setMode(currentChat.mode);
+        localStorage.setItem("selectedMode", currentChat.mode);
+      }
+    } else {
+      const savedMode = localStorage.getItem("selectedMode");
+      if (savedMode && Object.keys(MODES).includes(savedMode)) {
+        setMode(savedMode as Mode);
+      }
+    }
+  }, [activeChatId, chats]);
+
+  // Handle manual mode edits & state changes
+  useEffect(() => {
+    if (mode) {
+      localStorage.setItem("selectedMode", mode);
+    }
+    // Update active chat's mode in memory and sync with Firestore if applicable
+    if (activeChatId && mode) {
+      setChats(prev => prev.map(c => {
+         if (c.id === activeChatId && c.mode !== mode) {
+            const updatedChat = { ...c, mode, updatedAt: new Date() };
+            syncChatData(updatedChat);
+            return updatedChat;
+         }
+         return c;
+      }));
+    }
+  }, [mode, activeChatId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
     localStorage.setItem(`chatDraft_${activeChatId || 'home'}`, e.target.value);
+  };
+
+  const handleAiAvatarChange = (seed: string) => {
+    setAiAvatarSeed(seed);
+    localStorage.setItem("aiAvatarSeed", seed);
+    if (firebaseUser) {
+      syncProfile("aiAvatarSeed", seed);
+    }
   };
 
   // Auth & Sync
@@ -97,12 +275,22 @@ export default function App() {
       setFirebaseUser(user);
       if (user) {
         try {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists()) {
+          let userDoc;
+          try {
+            userDoc = await getDoc(doc(db, "users", user.uid));
+          } catch (error) {
+            handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
+            return;
+          }
+          if (userDoc && userDoc.exists()) {
             const data = userDoc.data();
             setUserRole(data.role || "user");
             setUserName(data.name || user.displayName || "Ayan");
             setUserProfilePic(data.photoURL || user.photoURL || "");
+            if (data.aiAvatarSeed) {
+              setAiAvatarSeed(data.aiAvatarSeed);
+              localStorage.setItem("aiAvatarSeed", data.aiAvatarSeed);
+            }
             setXp(data.xp || 1250);
             setLoveLanguage(data.loveLanguage || "Words of Affirmation");
             setAnniversaryDate(data.anniversaryDate || "");
@@ -111,17 +299,22 @@ export default function App() {
           } else {
             const isAdmin = user.email === 'hmrobiulislam75@gmail.com' && user.emailVerified;
             const newRole = isAdmin ? "admin" : "user";
-            await setDoc(doc(db, "users", user.uid), {
-              role: newRole,
-              name: user.displayName || "Ayan",
-              email: user.email,
-              photoURL: user.photoURL,
-              xp: 1250,
-              loveLanguage: "Words of Affirmation",
-              anniversaryDate: "",
-              streak: 1,
-              achievements: [],
-            });
+            try {
+              await setDoc(doc(db, "users", user.uid), {
+                role: newRole,
+                name: user.displayName || "Ayan",
+                email: user.email,
+                photoURL: user.photoURL,
+                xp: 1250,
+                loveLanguage: "Words of Affirmation",
+                anniversaryDate: "",
+                streak: 1,
+                achievements: [],
+                aiAvatarSeed: "Humaira"
+              });
+            } catch (error) {
+              handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}`);
+            }
             setUserRole(newRole);
             setUserName(user.displayName || "Ayan");
             setUserProfilePic(user.photoURL || "");
@@ -141,10 +334,10 @@ export default function App() {
            snapshot.forEach(d => {
                const data = d.data();
                loadedChats.push({
-                  ...data,
-                  createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
-                  updatedAt: data.updatedAt ? new Date(data.updatedAt) : new Date(),
-                  messages: (data.messages || []).map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }))
+                   ...data,
+                   createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+                   updatedAt: data.updatedAt ? new Date(data.updatedAt) : new Date(),
+                   messages: (data.messages || []).map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }))
                } as Chat);
            });
            loadedChats.sort((a,b) => b.updatedAt.getTime() - a.updatedAt.getTime());
@@ -152,6 +345,8 @@ export default function App() {
        } else {
            setChats([]);
        }
+    }, (error) => {
+       handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}/chats`);
     });
     return () => unsub();
   }, [firebaseUser]);
@@ -161,7 +356,11 @@ export default function App() {
 
   const syncProfile = async (field: string, value: any) => {
     if (!firebaseUser) return;
-    try { await updateDoc(doc(db, "users", firebaseUser.uid), { [field]: value }); } catch (e) {}
+    try { 
+      await updateDoc(doc(db, "users", firebaseUser.uid), { [field]: value }); 
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `users/${firebaseUser.uid}`);
+    }
   };
 
   const syncChatData = async (chat: Chat) => {
@@ -174,24 +373,66 @@ export default function App() {
          messages: chat.messages.map(m => ({ ...m, timestamp: m.timestamp.toISOString() }))
       };
       await setDoc(doc(db, "users", auth.currentUser.uid, "chats", chat.id), fbChat);
-    } catch (e) {}
+    } catch (e) {
+      handleFirestoreError(e, OperationType.WRITE, `users/${auth.currentUser.uid}/chats/${chat.id}`);
+    }
   };
 
-  useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [chats, activeChatId, isGenerating]);
-
   const activeChat = useMemo(() => chats.find(c => c.id === activeChatId) || null, [chats, activeChatId]);
+
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior
+      });
+    }
+  };
+
+  // Immediate scroll on activeChatId changing
+  useEffect(() => {
+    if (activeChatId) {
+      const timer = setTimeout(() => {
+        scrollToBottom("auto");
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [activeChatId]);
+
+  // Smooth scroll when new messages are added
+  useEffect(() => {
+    if (activeChat && activeChat.messages.length > 0) {
+      const timer = setTimeout(() => {
+        scrollToBottom("smooth");
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [activeChat?.messages.length, isGenerating]);
+
+  // Smooth scroll during active typing/token streaming to avoid layout jumps
+  useEffect(() => {
+    if (isGenerating && activeChat) {
+      scrollToBottom("smooth");
+    }
+  }, [activeChat?.messages[activeChat?.messages.length - 1]?.content]);
 
   const createNewChat = () => {
     setActiveChatId(null);
     setIsSidebarOpen(false);
   };
 
-  const deleteChat = (id: string, e: React.MouseEvent) => {
+  const deleteChat = async (id: string, e: React.MouseEvent) => {
      e.stopPropagation();
-     if(firebaseUser) deleteDoc(doc(db, "users", firebaseUser.uid, "chats", id));
+     if(firebaseUser) {
+       try {
+         await deleteDoc(doc(db, "users", firebaseUser.uid, "chats", id));
+       } catch (error) {
+         handleFirestoreError(error, OperationType.DELETE, `users/${firebaseUser.uid}/chats/${id}`);
+       }
+     }
      if(activeChatId === id) setActiveChatId(null);
+  };
+
   const handleSendMessage = async (customText?: string) => {
     const text = (customText || inputValue).trim();
     if (!text || isGenerating) return;
@@ -333,20 +574,25 @@ export default function App() {
   };
 
   const renderInputForm = (isCentered: boolean) => {
+     const t = MODE_THEMES[mode];
      return (
          <form 
            onSubmit={e => { e.preventDefault(); handleSendMessage(); }} 
-           className={cn("flex flex-col gap-1.5 rounded-2xl md:rounded-3xl border transition-all duration-300 relative w-full", 
+           className={cn("flex flex-col gap-1.5 rounded-[24px] border transition-all duration-300 relative w-full", 
               theme === "dark" 
                 ? cn("border-gray-800 focus-within:border-[#f97316]/80 focus-within:ring-2 focus-within:ring-[#f97316]/10", 
                      isCentered ? "shadow-xl bg-gray-900/90" : "shadow-xl bg-gray-950/80 backdrop-blur-md"
                   ) 
                 : cn("border-gray-200 focus-within:border-[#f97316]/80 focus-within:ring-2 focus-within:ring-[#f97316]/5", 
-                     isCentered ? "shadow-lg bg-white" : "shadow-xl bg-white/95 backdrop-blur-md"
+                     isCentered ? "shadow-[0_8px_30px_rgba(0,0,0,0.06)] bg-white" : "shadow-[0_8px_30px_rgba(0,0,0,0.06)] bg-white/95 backdrop-blur-md"
                   ),
-              activeChat ? "" : "border-[#f97316]/50"
+              activeChat ? "" : "border-orange-500/40"
            )}
-           style={{ padding: '8px' }}
+           style={{ 
+             padding: '8px',
+             borderColor: isModeSelectorOpen ? t.accent : undefined,
+             boxShadow: isModeSelectorOpen ? `0 0 15px ${t.accent}20` : undefined
+           }}
          >
            <textarea
               style={{ color: theme === "dark" ? "#f3f4f6" : "inherit" }}
@@ -356,31 +602,71 @@ export default function App() {
               onKeyDown={(e) => { if(e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
               placeholder={isCentered ? "কাউকে প্রেম নিবেদন করো বা কিছু জিজ্ঞেস করো..." : "কিছু জিজ্ঞেস করো..."}
               rows={1}
-              className="resize-none outline-none w-full bg-transparent px-3 py-2 w-full text-gray-800 dark:text-gray-100 font-medium placeholder-gray-400 dark:placeholder-gray-500 leading-relaxed max-h-[120px] text-[15px] sm:text-base border-0 focus:ring-0 focus:outline-none"
+              className="resize-none outline-none w-full bg-transparent px-3 py-2 text-gray-800 dark:text-gray-100 font-medium placeholder-gray-400 dark:placeholder-gray-500 leading-relaxed max-h-[120px] text-[15px] sm:text-base border-0 focus:ring-0 focus:outline-none"
            />
            
            <div className="flex items-center justify-between w-full pt-2 pb-1 px-2 border-t border-gray-100 dark:border-gray-800/50">
-              <div className="flex items-center gap-1.5">
-                  <span className={cn(
-                     "text-[9px] sm:text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-1 rounded-full leading-none bg-orange-100/60 text-[#f97316] flex items-center gap-1 shadow-sm",
-                     theme === "dark" ? "bg-orange-950/20 border border-orange-900/30 text-orange-400" : ""
-                  )}>
-                     <Heart className="w-2.5 h-2.5 fill-current" />
-                     {MODES[mode].label}
-                  </span>
+              <div className="relative">
+                  <button 
+                     type="button"
+                     onClick={() => setIsModeSelectorOpen(!isModeSelectorOpen)}
+                     className={cn(
+                        "text-[10px] sm:text-xs uppercase tracking-wider font-extrabold px-3 py-1.5 rounded-full leading-none flex items-center gap-1.5 shadow-sm select-none transition-all active:scale-95 border shrink-0 flex-nowrap max-w-[145px] sm:max-w-none",
+                        theme === "dark" 
+                          ? `${t.bgDark} ${t.borderDark} ${t.textDark} hover:bg-gray-800` 
+                          : `${t.bgLight} ${t.borderLight} ${t.text} hover:bg-gray-100`
+                     )}
+                  >
+                     {React.createElement(MODES[mode].icon, { className: "w-3.5 h-3.5 shrink-0" })}
+                     <span className="truncate max-w-[90px] sm:max-w-none">{MODES[mode].label}</span>
+                     <span className="text-[9px] opacity-60 shrink-0">▼</span>
+                  </button>
+                  
+                  {isModeSelectorOpen && (
+                    <>
+                      {/* Overlay to close popover */}
+                      <div className="fixed inset-0 z-30 pointer-events-auto" onClick={() => setIsModeSelectorOpen(false)} />
+                      <div className={cn(
+                        "absolute bottom-full mb-2 left-0 z-40 w-[220px] max-h-[250px] overflow-y-auto rounded-2xl border shadow-xl p-2 flex flex-col gap-1 pointer-events-auto scrollbar-thin",
+                        theme === "dark" ? "bg-gray-900 border-gray-800 text-gray-200" : "bg-white border-gray-100 text-gray-800"
+                      )}>
+                        {Object.keys(MODES).map((k) => {
+                          const mKey = k as Mode;
+                          const mData = MODES[mKey];
+                          const MIcon = mData.icon;
+                          const itemT = MODE_THEMES[mKey];
+                          return (
+                            <button
+                              key={mKey}
+                              type="button"
+                              onClick={() => {
+                                setMode(mKey);
+                                setIsModeSelectorOpen(false);
+                              }}
+                              className={cn(
+                                "flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs font-bold transition-colors w-full",
+                                mode === mKey
+                                  ? theme === "dark" ? `${itemT.bgDark} ${itemT.textDark}` : `${itemT.bgLight} ${itemT.text}`
+                                  : theme === "dark" ? "hover:bg-gray-800 text-gray-300" : "hover:bg-gray-50 text-gray-700"
+                              )}
+                            >
+                              <MIcon className="w-3.5 h-3.5 shrink-0" />
+                              <span>{mData.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
               </div>
               
               <div className="flex items-center gap-2">
-                 <button type="button" className="flex items-center gap-1 px-3 py-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-xs font-bold active:bg-gray-100 dark:active:bg-gray-700 transition-colors shadow-sm">
-                    {currentModel.name}
-                 </button>
-                 
                  {inputValue.trim() ? (
-                    <button type="submit" className="p-2 text-white bg-gradient-to-r from-orange-500 to-[#f97316] hover:brightness-105 active:scale-95 rounded-full transition-all shadow-md disabled:opacity-50 flex items-center justify-center cursor-pointer" disabled={isGenerating}>
-                        <Send className="w-4 h-4 ml-0.5" />
+                    <button type="submit" className={cn("p-2.5 text-white hover:brightness-105 active:scale-95 rounded-full transition-all shadow-md disabled:opacity-50 flex items-center justify-center cursor-pointer min-w-[44px] min-h-[44px] bg-gradient-to-r", t.buttonBg)} disabled={isGenerating}>
+                        <Send className="w-4.5 h-4.5 ml-0.5" />
                     </button>
                  ) : (
-                    <button type="button" className="p-2 text-gray-500 hover:text-gray-900 dark:hover:text-white rounded-full transition-colors active:scale-95">
+                    <button type="button" className="p-2.5 text-gray-500 hover:text-gray-900 dark:hover:text-white rounded-full transition-colors active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center">
                         <Mic className="w-4.5 h-4.5" />
                     </button>
                  )}
@@ -393,41 +679,57 @@ export default function App() {
   const currentModeData = MODES[mode];
 
   return (
-    <div className={cn("flex flex-col h-screen w-full font-sans transition-colors duration-300", theme === "dark" ? "bg-[#0b0f19] text-gray-100" : "bg-[#f9f9f9] text-gray-900")}>
+    <div className={cn("flex items-center justify-center min-h-screen transition-colors duration-300 p-0 sm:p-2 md:p-4 w-full max-w-full overflow-x-hidden", theme === "dark" ? "bg-[#0c0f18]" : "bg-[#E6EAF2]")}>
+      <div className={cn("flex flex-col h-screen w-full sm:max-w-[390px] sm:h-[830px] sm:rounded-[36px] sm:border-[8px] sm:border-gray-800 sm:shadow-[0_20px_50px_rgba(0,0,0,0.1)] relative overflow-hidden transition-all w-full max-w-full sm:w-[390px]", 
+         theme === "dark" ? "bg-[#0b0f19] text-gray-100" : "bg-[#F5F6FA] text-gray-950"
+      )}>
       
       {/* Header */}
-      <header className={cn("flex items-center justify-between px-4 py-3 shrink-0 border-b", theme === "dark" ? "border-gray-800 bg-[#0b0f19]" : "border-gray-200 bg-white")}>
-          <div className="flex items-center gap-3">
-              <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                 <Menu className="w-5 h-5" />
-              </button>
-              <h1 className="text-[#f97316] font-extrabold text-xl tracking-tight">HUMAIRA AI</h1>
+      <header className={cn("flex items-center justify-between px-4 py-3 shrink-0 border-b shadow-sm z-10", theme === "dark" ? "border-gray-800 bg-[#161e31]" : "border-gray-100 bg-white")}>
+          <div className="flex items-center gap-2">
+              {activeChatId ? (
+                <button 
+                  onClick={() => setActiveChatId(null)}
+                  className="p-1 px-2.5 -ml-1.5 rounded-xl border border-gray-200 dark:border-gray-705 bg-gray-50/50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-xs font-bold active:bg-gray-100 dark:active:bg-gray-700 transition-all shadow-sm select-none"
+                >
+                  ◀ ফিরুন
+                </button>
+              ) : (
+                <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                   <Menu className="w-5 h-5" />
+                </button>
+              )}
+              {activeChatId && (
+                <motion.div 
+                  className="w-7 h-7 rounded-full border-[2px] overflow-hidden flex items-center justify-center p-0.5 bg-amber-50 cursor-pointer shadow-sm relative shrink-0"
+                  style={{ borderColor: MODE_THEMES[mode].accent }}
+                  animate={{ scale: [1, 1.08, 1] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                  onClick={() => setIsProfileModalOpen(true)}
+                >
+                  <img src={humairaAvatar} alt="Humaira" className="w-full h-full rounded-full object-cover" />
+                </motion.div>
+              )}
+              <h1 className="font-extrabold text-base sm:text-lg tracking-tight select-none transition-colors duration-300" style={{ color: MODE_THEMES[mode].accent }}>
+                হুমায়রা এআই ✨
+              </h1>
           </div>
-          <div className="flex items-center gap-3">
-              <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 text-[#f97316] bg-orange-50 font-bold text-sm tracking-tight">
-                 <span className="text-[#f97316]">✦</span> Get Pro
+          <div className="flex items-center gap-2">
+              <button className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-orange-200 text-[#f97316] bg-orange-50 font-bold text-xs tracking-tight transition-all active:scale-95">
+                 <span className="text-orange-500">✦</span> প্রো 👑
               </button>
-              <button className="p-2 text-gray-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
-                 <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+              <button onClick={() => setTheme(theme === "light" ? "dark" : "light")} className="p-2 text-gray-500 dark:text-gray-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center">
+                 {theme === "light" ? <Moon className="w-4.5 h-4.5" /> : <Sun className="w-4.5 h-4.5" />}
               </button>
           </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 relative overflow-y-auto flex flex-col items-center w-full">
+      <main ref={scrollRef} className="flex-1 relative overflow-y-auto flex flex-col items-center w-full">
          {(!activeChat || activeChat.messages.length === 0) ? (
             <div className="flex-1 flex flex-col items-center justify-center w-full px-4 max-w-2xl mx-auto py-8">
-                {/* Greeting Avatar with glowing dynamic pulse */}
-                <div className="relative mb-6 group">
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#f97316] to-pink-500 rounded-full blur-xl opacity-40 group-hover:opacity-60 transition-opacity duration-500 animate-pulse" />
-                    <div className="relative w-[130px] h-[130px] rounded-full border-[6px] border-[#f97316] p-1.5 overflow-hidden bg-white shadow-2xl transition-transform duration-500 group-hover:scale-105">
-                       <img src="https://api.dicebear.com/8.x/micah/svg?seed=Humaira" alt="Humaira AI" className="w-full h-full object-cover rounded-full bg-amber-50" />
-                    </div>
-                    <div className="absolute -bottom-1 -right-1 bg-green-500 w-5 h-5 rounded-full border-4 border-white dark:border-[#0b0f19]" />
-                </div>
-
                 <div className="text-center space-y-2 mb-8">
-                    <h2 className="text-3xl md:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#f97316] via-orange-500 to-pink-500">
+                    <h2 className={cn("text-3xl md:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r", MODE_THEMES[mode].gradient)}>
                         Humaira AI
                     </h2>
                     <p className="text-sm md:text-base font-bold text-gray-500 dark:text-gray-400 max-w-md mx-auto line-clamp-2">
@@ -440,74 +742,56 @@ export default function App() {
                     {renderInputForm(true)}
                 </div>
 
-                {/* Suggestion Pills */}
-                <div className="mt-8 w-full">
-                    <p className="text-center text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3.5">
-                       QUICK PROMPTS • কিছু আইডিয়া
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-xl mx-auto">
-                       {[
-                         { text: "আজকে আমার মন অনেক খারাপ! 🥺", mode: "ROMANTIC" },
-                         { text: "আমাকে একটা কড়া রোস্ট করো তো! 🌶️", mode: "ROAST" },
-                         { text: "একটা সুন্দর প্রেমের কবিতা শোনাও! ❤️", mode: "ROMANTIC" },
-                         { text: "জীবনের সফলতার মূল চাবিকাঠি কি? ✨", mode: "ROAST_MOTIVATE" }
-                       ].map((suggestion, idx) => (
-                          <button 
-                             key={idx} 
-                             type="button"
-                             onClick={() => {
-                               setMode(suggestion.mode as Mode);
-                               handleSendMessage(suggestion.text);
-                             }}
-                             className={cn(
-                                "p-3.5 text-sm font-semibold text-left rounded-2xl border transition-all duration-300 hover:-translate-y-0.5 shadow-sm active:scale-95",
-                                theme === "dark" 
-                                  ? "bg-gray-800/40 border-gray-700/80 hover:bg-gray-800 text-gray-200 hover:border-orange-500/50" 
-                                  : "bg-white border-gray-200/80 hover:bg-orange-50/20 hover:border-orange-200 text-gray-700 hover:text-[#f97316]"
-                             )}
-                          >
-                             {suggestion.text}
-                          </button>
-                       ))}
-                    </div>
-                </div>
+
 
                 <div className="mt-10 text-center text-[11px] text-gray-400 dark:text-gray-500 font-medium">
                    RSF ROBIUL দ্বারা ডেভেলপ করা Humaira AI চ্যাটবট
                 </div>
             </div>
          ) : (
-            <div ref={scrollRef} className="w-full max-w-3xl mx-auto flex flex-col gap-6 p-4 pb-28">
-               {activeChat.messages.map(m => (
-                  <div key={m.id} className={cn("flex w-full", m.role === "user" ? "justify-end" : "justify-start")}>
-                     {m.role === "assistant" && (
-                        <div className="w-8 h-8 rounded-full bg-[#f97316] p-1 flex-shrink-0 mr-2 self-end overflow-hidden flex items-center justify-center shadow-md">
-                           <img src="https://api.dicebear.com/8.x/micah/svg?seed=Humaira" alt="H" className="w-full h-full" />
+            <div className="w-full max-w-3xl mx-auto flex flex-col gap-6 p-4 pb-28">
+               {activeChat.messages.map(m => {
+                  if (m.role === "assistant" && m.content === "" && isGenerating) {
+                     return null; // Skip rendering empty thinking assistant message
+                  }
+                  return (
+                     <div key={m.id} className={cn("flex w-full gap-2.5 items-end", m.role === "user" ? "justify-end" : "justify-start")}>
+                        {m.role === "assistant" && (
+                           <motion.div 
+                             className="w-8 h-8 rounded-full border overflow-hidden flex items-center justify-center p-0.5 bg-amber-50 shadow-sm shrink-0"
+                             style={{ borderColor: MODE_THEMES[mode].accent }}
+                             animate={{ scale: [1, 1.05, 1] }}
+                             transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                           >
+                              <img src={humairaAvatar} alt="Humaira" className="w-full h-full rounded-full object-cover" />
+                           </motion.div>
+                        )}
+                        <div className={cn("px-5 py-3.5 max-w-[78%] sm:max-w-[82%] rounded-[20px]", 
+                           m.role === "user" ? "text-white rounded-br-[4px] shadow-sm font-medium" : 
+                           theme === "dark" ? "bg-gray-800 text-gray-50 rounded-bl-[4px] shadow-sm border border-gray-750" : "bg-white text-gray-800 rounded-bl-[4px] shadow-md border border-gray-100"
+                        )}
+                        style={m.role === "user" ? { backgroundColor: MODE_THEMES[mode].accent } : undefined}
+                        >
+                            {m.role === "assistant" ? (
+                               <div className="markdown-content" dangerouslySetInnerHTML={parseThinkingAndSteps(m.content)} />
+                            ) : (
+                               <p className="whitespace-pre-wrap">{m.content}</p>
+                            )}
                         </div>
-                     )}
-                     <div className={cn("px-5 py-3.5 max-w-[80%] rounded-[20px]", 
-                        m.role === "user" ? "bg-[#f97316] text-white rounded-br-[4px] shadow-sm font-medium" : 
-                        theme === "dark" ? "bg-gray-800 text-gray-50 rounded-bl-[4px] shadow-sm border border-gray-600" : "bg-white text-gray-800 rounded-bl-[4px] shadow-md border border-gray-100"
-                     )}>
-                         {m.role === "assistant" ? (
-                            <div className="markdown-content" dangerouslySetInnerHTML={parseThinkingAndSteps(m.content)} />
-                         ) : (
-                            <p className="whitespace-pre-wrap">{m.content}</p>
-                         )}
                      </div>
+                  );
+               })}
+               
+               {/* Skeleton Shimmer thinking placeholder */}
+               {isGenerating && activeChat.messages[activeChat.messages.length - 1]?.role === "assistant" && activeChat.messages[activeChat.messages.length - 1]?.content === "" && (
+                  <SkeletonShimmer theme={theme} />
+               )}
+
+               {/* CSS typing indicator during generation */}
+               {isGenerating && activeChat.messages[activeChat.messages.length - 1]?.role === "assistant" && activeChat.messages[activeChat.messages.length - 1]?.content !== "" && (
+                  <div className="flex w-full justify-start mt-1">
+                     <TypingIndicator theme={theme} />
                   </div>
-               ))}
-               {isGenerating && (
-                 <div className="flex w-full justify-start mt-2">
-                     <div className="w-8 h-8 rounded-full bg-[#f97316] p-1 flex-shrink-0 mr-2 self-end overflow-hidden">
-                         <img src="https://api.dicebear.com/8.x/micah/svg?seed=Humaira" alt="H" className="w-full h-full" />
-                     </div>
-                     <div className={cn("px-5 py-4 max-w-[80%] rounded-[20px] rounded-bl-[4px] flex items-center gap-1.5", theme === "dark" ? "bg-gray-800" : "bg-white border border-gray-100 shadow-sm")}>
-                         <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: "0ms"}}/>
-                         <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: "150ms"}}/>
-                         <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: "300ms"}}/>
-                     </div>
-                 </div>
                )}
             </div>
          )}
@@ -515,8 +799,8 @@ export default function App() {
 
       {/* Floating Bottom Input Form (Only visible when activeChat has messages) */}
       {(activeChat && activeChat.messages.length > 0) && (
-         <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#f9f9f9]/90 via-[#f9f9f9]/80 to-transparent dark:from-[#0b0f19] dark:via-[#0b0f19]/80 dark:to-transparent z-20 pointer-events-none">
-            <div className="max-w-3xl mx-auto pointer-events-auto w-full">
+         <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#f5f6fa]/95 via-[#f5f6fa]/70 to-transparent dark:from-[#0b0f19] dark:via-[#0b0f19]/70 dark:to-transparent z-20 pointer-events-none">
+            <div className="w-full pointer-events-auto">
                {renderInputForm(false)}
             </div>
          </div>
@@ -606,6 +890,19 @@ export default function App() {
                               className={cn("w-full rounded-xl p-3 font-semibold text-sm border focus:ring-2 focus:ring-[#f97316] outline-none transition-all", theme === "dark" ? "bg-gray-800 border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-200 text-gray-800")}
                            />
                         </div>
+
+                        <div className="flex flex-col gap-1.5">
+                           <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">হুমায়রা AI এভাটার (স্থায়ী / Permanent)</label>
+                           <div className="flex gap-3 items-center">
+                              <div className="w-12 h-12 rounded-2xl bg-orange-50 flex-shrink-0 flex items-center justify-center overflow-hidden border border-orange-200 dark:border-gray-750 shadow-sm">
+                                 <img src={humairaAvatar} alt="Humaira Permanent Avatar" className="w-full h-full object-cover" />
+                              </div>
+                              <div>
+                                 <p className="text-xs font-extrabold text-[#f97316]">হুমায়রা পারমানেন্ট এভাটার ✨</p>
+                                 <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500">এটি হুমায়রার স্থায়ী এবং অফিসিয়াল এভাটার হিসেবে সর্বজনীনভাবে সেট করা হয়েছে।</p>
+                              </div>
+                           </div>
+                        </div>
                      </div>
                      
                      <div className="h-[1px] w-full bg-gray-200 dark:bg-gray-800 my-2" />
@@ -675,13 +972,13 @@ export default function App() {
                    <div className="w-10 h-10 rounded-full border-2 border-[#f97316] overflow-hidden bg-orange-100 p-0.5">
                        <img src="https://api.dicebear.com/8.x/micah/svg?seed=Humaira" alt="Humaira" className="w-full h-full object-cover" />
                    </div>
-                   <span className="font-extrabold text-lg text-gray-800 dark:text-gray-100 tracking-tight">Humaira Ai</span>
+                   <span className="font-extrabold text-lg text-gray-800 dark:text-gray-100 tracking-tight">হুমায়রা এআই 💖</span>
                </div>
                
                {/* New Chat Button */}
                <div className="p-4 border-b border-gray-100 dark:border-gray-800">
-                  <button onClick={createNewChat} className="w-full py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 flex items-center justify-center gap-2 font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm">
-                     <Plus className="w-4 h-4" /> নতুন chat
+                  <button onClick={createNewChat} className="w-full py-3 rounded-xl border border-orange-200 dark:border-orange-900 flex items-center justify-center gap-2 font-bold text-[#f97316] hover:bg-orange-50/50 dark:hover:bg-orange-950/20 transition-all active:scale-[0.98] shadow-sm select-none cursor-pointer min-h-[44px]">
+                     <Plus className="w-4 h-4" /> নতুন চ্যাট শুরু করুন
                   </button>
                </div>
 
@@ -689,7 +986,7 @@ export default function App() {
                <div className="flex-1 overflow-y-auto w-full pt-2 pb-6 space-y-5 px-3">
                    {/* Roast Modes */}
                    <div>
-                       <h3 className="px-3 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">ROAST MODES</h3>
+                       <h3 className="px-3 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">রোস্ট মোডসমূহ 🔥</h3>
                        <div className="flex flex-col gap-1">
                            {(["ROMANTIC", "ROAST", "FRIENDLY_ROAST", "ROAST_MOTIVATE"] as Mode[]).map(m => (
                                <button key={m} onClick={() => { setMode(m); setIsSidebarOpen(false); }} className={cn("px-3 py-2.5 rounded-xl font-medium text-[15px] flex items-center gap-3 w-full text-left transition-colors", mode === m ? "bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400" : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800")}>
@@ -701,7 +998,7 @@ export default function App() {
 
                    {/* Normal */}
                    <div>
-                       <h3 className="px-3 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">NORMAL</h3>
+                       <h3 className="px-3 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">সাধারণ মোড 💬</h3>
                        <div className="flex flex-col gap-1">
                            {(["NORMAL"] as Mode[]).map(m => (
                                <button key={m} onClick={() => { setMode(m); setIsSidebarOpen(false); }} className={cn("px-3 py-2.5 rounded-[12px] font-bold text-[15px] flex items-center gap-3 w-full text-left transition-colors", mode === m ? "bg-[#f9f0e8] text-[#c2410c] dark:bg-orange-900/40 dark:text-orange-300" : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800")}>
@@ -713,7 +1010,7 @@ export default function App() {
 
                    {/* Pro modes */}
                    <div>
-                       <h3 className="px-3 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">PRO MODES 👑</h3>
+                       <h3 className="px-3 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">টুলস ও ভিআইপি মোডসমূহ 👑</h3>
                        <div className="flex flex-col gap-1">
                            {(["ISLAMIC", "LEGEND"] as Mode[]).map(m => {
                                const Icon = MODES[m].icon;
@@ -731,7 +1028,7 @@ export default function App() {
                    
                    {/* Recents */}
                    <div>
-                       <h3 className="px-3 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-4">RECENTS</h3>
+                       <h3 className="px-3 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-4">সাম্প্রতিক চ্যাটসমূহ ⏳</h3>
                        <div className="flex flex-col gap-1">
                            {chats.length === 0 ? (
                                <div className="px-3 py-2 text-sm text-gray-400">কোনো chat নেই</div>
@@ -800,9 +1097,50 @@ export default function App() {
         .markdown-content strong { font-weight: 800; }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.5); border-radius: 4px; }
+        
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        
+        .shimmer-bg {
+          position: relative;
+          overflow: hidden;
+        }
+        .shimmer-bg::after {
+          position: absolute;
+          top: 0; right: 0; bottom: 0; left: 0;
+          transform: translateX(-100%);
+          background-image: linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.25) 20%,
+            rgba(255, 255, 255, 0.5) 60%,
+            rgba(255, 255, 255, 0) 100%
+          );
+          animation: shimmer 1.6s infinite ease-in-out;
+          content: '';
+        }
+        .dark .shimmer-bg::after {
+          background-image: linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.08) 20%,
+            rgba(255, 255, 255, 0.15) 60%,
+            rgba(255, 255, 255, 0) 100%
+          );
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.25s ease-out forwards;
+        }
         `}
       </style>
+      </div>
     </div>
   );
-}
 }
