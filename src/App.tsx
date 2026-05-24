@@ -35,7 +35,7 @@ interface Chat {
 }
 
 const MODELS = [
-  { id: "gemini-3.5-flash", name: "Gemini" }
+  { id: "gemini-2.0-flash", name: "Gemini" }
 ];
 
 const MODES: Record<Mode, { label: string; icon: any; category: string; prompt: string; theme: any; isPro?: boolean }> = {
