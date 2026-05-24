@@ -12,7 +12,6 @@ async function startServer() {
 
   app.use(express.json());
 
-  // API Route for chatting with Gemini
   app.post("/api/chat", async (req, res) => {
     const { message, history, systemInstruction, model } = req.body;
 
@@ -23,7 +22,7 @@ async function startServer() {
     try {
       const gkey = process.env.GEMINI_API_KEY;
       if (!gkey) {
-        return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server. Please add it via Settings." });
+        return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server." });
       }
 
       const ai = new GoogleGenAI({
@@ -35,7 +34,7 @@ async function startServer() {
         }
       });
 
-      // ✅ FIX: Valid model list, default to gemini-2.0-flash
+      // ✅ Valid models only — default: gemini-2.0-flash
       const validModels = [
         "gemini-2.0-flash",
         "gemini-1.5-flash",
@@ -43,16 +42,9 @@ async function startServer() {
         "gemini-2.5-flash-preview-05-20",
         "gemini-2.5-pro-preview-05-06",
       ];
-      let modelName = (model && validModels.includes(model)) ? model : "gemini-2.0-flash";
+      const modelName = (model && validModels.includes(model)) ? model : "gemini-2.0-flash";
 
-      // Configure SSE response headers for chunk streaming
-      res.writeHead(200, {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive"
-      });
-
-      // Format history to match GoogleGenAI format
+      // ✅ Regular JSON response (Vercel-compatible, no SSE)
       const formattedHistory = (history || []).map((m: any) => ({
         role: m.role === "assistant" ? "model" as const : "user" as const,
         parts: [{ text: m.parts?.[0]?.text || m.content || "" }]
@@ -66,23 +58,17 @@ async function startServer() {
         history: formattedHistory
       });
 
-      const responseStream = await chatSession.sendMessageStream({ message });
+      const response = await chatSession.sendMessage({ message });
+      const fullText = response.text;
 
-      for await (const chunk of responseStream) {
-        const text = chunk.text || "";
-        res.write(`data: ${JSON.stringify({ text })}\n\n`);
-      }
+      return res.status(200).json({ text: fullText });
 
-      res.write("data: [DONE]\n\n");
-      res.end();
     } catch (error: any) {
       console.error("Gemini API error:", error);
-      res.write(`data: ${JSON.stringify({ error: error.message || "An error occurred with the AI model" })}\n\n`);
-      res.end();
+      return res.status(500).json({ error: error.message || "An error occurred with the AI model" });
     }
   });
 
-  // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
