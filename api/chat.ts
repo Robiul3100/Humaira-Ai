@@ -1,5 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
-
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -17,35 +15,48 @@ export default async function handler(req: any, res: any) {
       return res.status(500).json({ error: "GEMINI_API_KEY is not configured." });
     }
 
-    const ai = new GoogleGenAI({ apiKey: gkey });
-
-    const validModels = [
+    const modelName = (model && [
       "gemini-2.0-flash",
       "gemini-1.5-flash",
-      "gemini-1.5-pro",
-      "gemini-2.5-flash-preview-05-20",
+      "gemini-1.5-pro"
+    ].includes(model)) ? model : "gemini-2.0-flash";
+
+    // Build conversation history
+    const contents = [
+      ...(history || []).map((m: any) => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content || "" }]
+      })),
+      { role: "user", parts: [{ text: message }] }
     ];
-    const modelName =
-      model && validModels.includes(model) ? model : "gemini-2.0-flash";
 
-    const formattedHistory = (history || []).map((m: any) => ({
-      role: m.role === "assistant" ? ("model" as const) : ("user" as const),
-      parts: [{ text: m.parts?.[0]?.text || m.content || "" }],
-    }));
+    // Direct Gemini REST API call — no SDK needed
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${gkey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents,
+          systemInstruction: systemInstruction
+            ? { parts: [{ text: systemInstruction }] }
+            : undefined,
+          generationConfig: { temperature: 0.7 }
+        })
+      }
+    );
 
-    const chatSession = ai.chats.create({
-      model: modelName,
-      config: {
-        systemInstruction: systemInstruction || "You are a helpful AI assistant.",
-      },
-      history: formattedHistory,
-    });
+    if (!geminiRes.ok) {
+      const err = await geminiRes.json();
+      return res.status(500).json({ error: err.error?.message || "Gemini API error" });
+    }
 
-    const response = await chatSession.sendMessage({ message });
-    return res.status(200).json({ text: response.text });
+    const data = await geminiRes.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    return res.status(200).json({ text });
 
   } catch (error: any) {
-    console.error("Gemini API error:", error);
+    console.error("API error:", error);
     return res.status(500).json({ error: error.message || "An error occurred" });
   }
 }
