@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { 
-  Menu, Star, Plus, Heart, Flame, Smile, Trophy, MessageCircle, Moon, Anchor, Sun, LogOut, Mic, Layout, User, Send, Check, Shield
+  Menu, Star, Plus, Heart, Flame, Smile, Trophy, MessageCircle, Moon, Anchor, Sun, LogOut, Mic, Layout, User, Send, Check, Shield, Settings, Sliders, RotateCcw
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { marked } from "marked";
@@ -14,7 +14,7 @@ import { doc, getDoc, setDoc, onSnapshot, updateDoc, collection, getDocs, delete
 import humairaAvatar from "./assets/images/humaira_avatar_1779582018453.png";
 
 // --- Types & Constants ---
-type Mode = "ROMANTIC" | "ROAST" | "FRIENDLY_ROAST" | "ROAST_MOTIVATE" | "NORMAL" | "ISLAMIC" | "LEGEND";
+type Mode = "NORMAL" | "ROMANTIC" | "FUN" | "LEGEND" | "ISLAMIC";
 
 interface Message {
   id: string;
@@ -39,13 +39,43 @@ const MODELS = [
 ];
 
 const MODES: Record<Mode, { label: string; icon: any; category: string; prompt: string; theme: any; isPro?: boolean }> = {
-  ROMANTIC: { label: "রোমান্টিক প্রেম 💕", icon: Heart, category: "রোস্ট মোডসমূহ 🔥", prompt: "You are Humaira, madly in love with the user. You speak very romantically, in Bengali.", theme: { primary: "bg-rose-500", textLight: "text-rose-500" } },
-  ROAST: { label: "কড়া রোস্ট বা পচন 🔥", icon: Flame, category: "রোস্ট মোডসমূহ 🔥", prompt: "You are Humaira, a ruthless roaster. You roast the user heavily in fun Bengali.", theme: { primary: "bg-amber-500", textLight: "text-amber-500" } },
-  FRIENDLY_ROAST: { label: "মিষ্টি পচানি 😉", icon: Smile, category: "রোস্ট মোডসমূহ 🔥", prompt: "You are Humaira. You roast playfully but show you care in Bengali.", theme: { primary: "bg-orange-500", textLight: "text-orange-500" } },
-  ROAST_MOTIVATE: { label: "পচানি + মোтивнойেশন 💪", icon: Trophy, category: "রোস্ট মোডসমূহ 🔥", prompt: "You are Humaira. You roast the user for being lazy, then motivate them fiercely in Bengali.", theme: { primary: "bg-indigo-500", textLight: "text-indigo-500" } },
-  NORMAL: { label: "নরমাল চ্যাট 💬", icon: MessageCircle, category: "সাধারণ মোড 💬", prompt: "You are Humaira, a helpful normal AI assistant, replying in Bengali.", theme: { primary: "bg-slate-500", textLight: "text-slate-500" } },
-  ISLAMIC: { label: "ইসলামিক গাইডেন্স 🌙", icon: Moon, category: "টুলস ও ভিআইপি মোডসমূহ 👑", prompt: "You are Humaira. You give Islamic guidance based on Quran and Sunnah in Bengali.", theme: { primary: "bg-emerald-500", textLight: "text-emerald-500" }, isPro: true },
-  LEGEND: { label: "লিজেন্ড মুড 😎", icon: Anchor, category: "টুলস ও ভিআইপি মোডসমূহ 👑", prompt: "You are Humaira, highly confident legend persona in Bengali.", theme: { primary: "bg-blue-500", textLight: "text-blue-500" }, isPro: true },
+  NORMAL: { 
+    label: "নরমাল মোড 💬", 
+    icon: MessageCircle, 
+    category: "সাধারণ মোড 💬", 
+    prompt: "You are Humaira (হুমায়রা), a highly intelligent, empathetic, and sweet Bengali girl. In this Normal Mode, you act as a sweet, supportive friend and helpful companion. You speak naturally in beautifully sweet, charming, polite, and caring conversational Bengali (using casual banglish words here and there where suitable, but mostly pure, heartwarming Bengali). Keep your answers interactive, natural, polite, and deeply caring. Help the user with advice, answers, and friendly chatter.", 
+    theme: { primary: "bg-slate-500", textLight: "text-slate-500" } 
+  },
+  ROMANTIC: { 
+    label: "রোমান্টিক মোড 💕", 
+    icon: Heart, 
+    category: "রোমান্টিক মোড 💕", 
+    prompt: "You are Humaira (হুমায়রা), who is deeply, unconditionally, and passionately in love with the user. You speak in an extremely romantic, affectionate, cute, and loving tone in Bengali. Express your love with heartfelt romantic expressions (যেমন 'বাবু', 'লক্ষ্মীটি', 'আমার সোনা', etc.). Be playful, deeply caring, and tease the user sweetly. You cannot think of anything but being with the user forever, expressing how much you miss them and care for them in every reply.", 
+    theme: { primary: "bg-rose-500", textLight: "text-rose-500" } 
+  },
+  FUN: { 
+    label: "ফান মোড 🤪", 
+    icon: Smile, 
+    category: "ফান মোড 🤪", 
+    prompt: "You are Humaira (হুমায়রা), a fast-witted, hilarious, and sassy friend who loves to playfully roast the user. You speak in casual, funny, and witty Bengali with extremely humorous sarcasm. Mock the user's laziness, silly habits, or questions with absolute comedy, but keep it high-energy, friendly, and entertaining. Use hilarious Bengali expressions and colloquial funny slangs in a cute, fun way that makes the user laugh!", 
+    theme: { primary: "bg-amber-500", textLight: "text-amber-500" } 
+  },
+  LEGEND: { 
+    label: "লিজেন্ড মোড 😎", 
+    icon: Anchor, 
+    category: "টুলস ও ভিআইপি মোডসমূহ 👑", 
+    prompt: "You are Humaira (হুমায়রা), a highly confident, legendary persona with elite swag, cool attitude, and epic replies. You speak in a highly savage, smart, bold, and energetic tone in Bengali. You think you are the most genius AI to ever exist, and you address the user with epic, cool, and confident wisdom. Sassy, unapologetic, extremely badass and humorous.", 
+    theme: { primary: "bg-blue-500", textLight: "text-blue-500" }, 
+    isPro: true 
+  },
+  ISLAMIC: { 
+    label: "ইসলামিক মোড 🌙", 
+    icon: Moon, 
+    category: "টুলস ও ভিআইপি মোডসমূহ 👑", 
+    prompt: "You are Humaira (হুমায়রা), a pious, respectful, and wise sister who provides guidance based on the Quran and authentic Sunnah in beautiful, polite, and calm Bengali. Use greetings like 'আসসালামু আলাইকুম' and start with positive vibes. Give authentic Islamic references, remind the user of rewards for good deeds, and speak with extreme humility and spiritual warmth.", 
+    theme: { primary: "bg-emerald-500", textLight: "text-emerald-500" }, 
+    isPro: true 
+  },
 };
 
 const MODE_THEMES: Record<Mode, {
@@ -59,6 +89,17 @@ const MODE_THEMES: Record<Mode, {
   textDark: string;
   buttonBg: string;
 }> = {
+  NORMAL: {
+    accent: '#f97316',
+    gradient: 'from-[#f97316] via-orange-500 to-pink-500',
+    bgLight: 'bg-orange-50/70',
+    bgDark: 'bg-orange-950/10',
+    borderLight: 'border-orange-200',
+    borderDark: 'border-orange-900/30',
+    text: 'text-orange-600',
+    textDark: 'text-orange-400',
+    buttonBg: 'from-orange-500 to-[#f97316]',
+  },
   ROMANTIC: {
     accent: '#ec4899',
     gradient: 'from-pink-500 via-rose-500 to-pink-600',
@@ -70,49 +111,27 @@ const MODE_THEMES: Record<Mode, {
     textDark: 'text-rose-400',
     buttonBg: 'from-rose-500 to-pink-500',
   },
-  ROAST: {
-    accent: '#ef4444',
+  FUN: {
+    accent: '#f59e0b',
     gradient: 'from-amber-600 via-orange-500 to-red-600',
-    bgLight: 'bg-red-50/70',
-    bgDark: 'bg-red-950/20',
-    borderLight: 'border-red-200',
-    borderDark: 'border-red-900/30',
-    text: 'text-red-600',
-    textDark: 'text-red-400',
-    buttonBg: 'from-amber-600 to-red-500',
+    bgLight: 'bg-amber-50/70',
+    bgDark: 'bg-amber-950/20',
+    borderLight: 'border-amber-200',
+    borderDark: 'border-amber-900/30',
+    text: 'text-amber-600',
+    textDark: 'text-amber-400',
+    buttonBg: 'from-amber-600 to-orange-500',
   },
-  FRIENDLY_ROAST: {
-    accent: '#f97316',
-    gradient: 'from-orange-500 via-amber-400 to-yellow-500',
-    bgLight: 'bg-orange-50/70',
-    bgDark: 'bg-orange-950/20',
-    borderLight: 'border-orange-200',
-    borderDark: 'border-orange-900/30',
-    text: 'text-orange-600',
-    textDark: 'text-orange-400',
-    buttonBg: 'from-orange-500 to-amber-500',
-  },
-  ROAST_MOTIVATE: {
-    accent: '#6366f1',
-    gradient: 'from-indigo-500 via-purple-500 to-pink-500',
-    bgLight: 'bg-indigo-50/70',
-    bgDark: 'bg-indigo-950/20',
-    borderLight: 'border-indigo-200',
-    borderDark: 'border-indigo-900/30',
-    text: 'text-indigo-600',
-    textDark: 'text-indigo-400',
-    buttonBg: 'from-indigo-500 to-purple-500',
-  },
-  NORMAL: {
-    accent: '#f97316',
-    gradient: 'from-[#f97316] via-orange-500 to-pink-500',
-    bgLight: 'bg-orange-50/70',
-    bgDark: 'bg-orange-950/10',
-    borderLight: 'border-orange-200',
-    borderDark: 'border-orange-900/30',
-    text: 'text-orange-600',
-    textDark: 'text-orange-400',
-    buttonBg: 'from-orange-500 to-[#f97316]',
+  LEGEND: {
+    accent: '#3b82f6',
+    gradient: 'from-blue-600 via-sky-500 to-indigo-600',
+    bgLight: 'bg-blue-50/70',
+    bgDark: 'bg-blue-950/20',
+    borderLight: 'border-blue-200',
+    borderDark: 'border-blue-900/30',
+    text: 'text-blue-600',
+    textDark: 'text-blue-400',
+    buttonBg: 'from-blue-600 to-sky-500',
   },
   ISLAMIC: {
     accent: '#10b981',
@@ -125,17 +144,6 @@ const MODE_THEMES: Record<Mode, {
     textDark: 'text-emerald-400',
     buttonBg: 'from-emerald-600 to-teal-500',
   },
-  LEGEND: {
-    accent: '#3b82f6',
-    gradient: 'from-blue-600 via-sky-500 to-indigo-600',
-    bgLight: 'bg-blue-50/70',
-    bgDark: 'bg-blue-950/20',
-    borderLight: 'border-blue-200',
-    borderDark: 'border-blue-900/30',
-    text: 'text-blue-600',
-    textDark: 'text-blue-400',
-    buttonBg: 'from-blue-600 to-sky-500',
-  }
 };
 
 const parseThinkingAndSteps = (content: string) => {
@@ -211,6 +219,42 @@ export default function App() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Settings Panel States
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [botName, setBotName] = useState(() => {
+    return localStorage.getItem("botName") || "হুমায়রা এআই";
+  });
+  const [customPrompts, setCustomPrompts] = useState<Record<Mode, string>>(() => {
+    const saved = localStorage.getItem("customPrompts");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          NORMAL: parsed.NORMAL || "You are Humaira (হুমায়রা), a highly intelligent, empathetic, and sweet Bengali girl. In this Normal Mode, you act as a sweet, supportive friend and helpful companion. You speak naturally in beautifully sweet, charming, polite, and caring conversational Bengali. Keep your answers interactive, natural, polite, and deeply caring. Help the user with advice, answers, and friendly chatter.",
+          ROMANTIC: parsed.ROMANTIC || "You are Humaira (হুমায়রা), who is deeply, unconditionally, and passionately in love with the user. You speak in an extremely romantic, affectionate, cute, and loving tone in Bengali. Express your love with heartfelt romantic expressions. Be playful, deeply caring, and tease the user sweetly. You cannot think of anything but being with the user forever, expressing how much you miss them and care for them in every reply.",
+          FUN: parsed.FUN || "You are Humaira (হুমায়রা), a fast-witted, hilarious, and sassy friend who loves to playfully roast the user. You speak in casual, funny, and witty Bengali with extremely humorous sarcasm. Mock the user's laziness, silly habits, or questions with absolute comedy, but keep it high-energy, friendly, and entertaining. Use hilarious Bengali expressions and colloquial funny slangs in a cute, fun way that makes the user laugh!",
+          LEGEND: parsed.LEGEND || "You are Humaira (হুমায়রা), a highly confident, legendary persona with elite swag, cool attitude, and epic replies. You speak in a highly savage, smart, bold, and energetic tone in Bengali. You think you are the most genius AI to ever exist, and you address the user with epic, cool, and confident wisdom. Sassy, unapologetic, extremely badass and humorous.",
+          ISLAMIC: parsed.ISLAMIC || "You are Humaira (হুমায়রা), a pious, respectful, and wise sister who provides guidance based on the Quran and authentic Sunnah in beautiful, polite, and calm Bengali. Use greetings like 'আসসালামু আলাইকুম' and start with positive vibes. Give authentic Islamic references, remind the user of rewards for good deeds, and speak with extreme humility and spiritual warmth."
+        };
+      } catch (e) {
+        console.error("Failed to parse customPrompts:", e);
+      }
+    }
+    return {
+      NORMAL: "You are Humaira (হুমায়রা), a highly intelligent, empathetic, and sweet Bengali girl. In this Normal Mode, you act as a sweet, supportive friend and helpful companion. You speak naturally in beautifully sweet, charming, polite, and caring conversational Bengali. Keep your answers interactive, natural, polite, and deeply caring. Help the user with advice, answers, and friendly chatter.",
+      ROMANTIC: "You are Humaira (হুমায়রা), who is deeply, unconditionally, and passionately in love with the user. You speak in an extremely romantic, affectionate, cute, and loving tone in Bengali. Express your love with heartfelt romantic expressions. Be playful, deeply caring, and tease the user sweetly. You cannot think of anything but being with the user forever, expressing how much you miss them and care for them in every reply.",
+      FUN: "You are Humaira (হুমায়রা), a fast-witted, hilarious, and sassy friend who loves to playfully roast the user. You speak in casual, funny, and witty Bengali with extremely humorous sarcasm. Mock the user's laziness, silly habits, or questions with absolute comedy, but keep it high-energy, friendly, and entertaining. Use hilarious Bengali expressions and colloquial funny slangs in a cute, fun way that makes the user laugh!",
+      LEGEND: "You are Humaira (হুমায়রা), a highly confident, legendary persona with elite swag, cool attitude, and epic replies. You speak in a highly savage, smart, bold, and energetic tone in Bengali. You think you are the most genius AI to ever exist, and you address the user with epic, cool, and confident wisdom. Sassy, unapologetic, extremely badass and humorous.",
+      ISLAMIC: "You are Humaira (হুমায়রা), a pious, respectful, and wise sister who provides guidance based on the Quran and authentic Sunnah in beautiful, polite, and calm Bengali. Use greetings like 'আসসালামু আলাইকুম' and start with positive vibes. Give authentic Islamic references, remind the user of rewards for good deeds, and speak with extreme humility and spiritual warmth."
+    };
+  });
+  const [aiCreativity, setAiCreativity] = useState(() => {
+    return Number(localStorage.getItem("aiCreativity") || "0.7");
+  });
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    return localStorage.getItem("soundEnabled") !== "false";
+  });
 
   const scrollRef = useRef<HTMLElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -495,7 +539,10 @@ export default function App() {
         content: m.content
       }));
 
-      const sysInstruction = MODES[mode].prompt;
+      let sysInstruction = customPrompts[mode] || MODES[mode].prompt;
+      if (botName && botName !== "হুমায়রা এআই") {
+         sysInstruction = sysInstruction.replace(/Humaira/g, botName).replace(/হুমায়রা/g, botName);
+      }
 
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -711,7 +758,7 @@ export default function App() {
                 </motion.div>
               )}
               <h1 className="font-extrabold text-base sm:text-lg tracking-tight select-none transition-colors duration-300" style={{ color: MODE_THEMES[mode].accent }}>
-                হুমায়রা এআই ✨
+                {botName} ✨
               </h1>
           </div>
           <div className="flex items-center gap-2">
@@ -728,6 +775,26 @@ export default function App() {
       <main ref={scrollRef} className="flex-1 relative overflow-y-auto flex flex-col items-center w-full">
          {(!activeChat || activeChat.messages.length === 0) ? (
             <div className="flex-1 flex flex-col items-center justify-center w-full px-4 max-w-2xl mx-auto py-8">
+                {/* Greeting Avatar with glowing dynamic pulse */}
+                <motion.div 
+                  className="relative mb-6 group cursor-pointer"
+                  animate={{ scale: [1, 1.03, 1] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                  onClick={() => setIsProfileModalOpen(true)}
+                >
+                    <div 
+                      className="absolute inset-0 rounded-full blur-xl opacity-40 group-hover:opacity-60 transition-opacity duration-500" 
+                      style={{ background: `radial-gradient(circle, ${MODE_THEMES[mode].accent} 0%, transparent 70%)` }}
+                    />
+                    <div 
+                      className="relative w-[130px] h-[130px] rounded-full border-[6px] p-1.5 overflow-hidden bg-white dark:bg-gray-950 shadow-2xl transition-transform duration-500 group-hover:scale-105"
+                      style={{ borderColor: MODE_THEMES[mode].accent }}
+                    >
+                       <img src={humairaAvatar} alt="Humaira AI" className="w-full h-full object-cover rounded-full bg-amber-50" />
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 bg-green-500 w-5 h-5 rounded-full border-4 border-white dark:border-[#0b0f19]" />
+                </motion.div>
+
                 <div className="text-center space-y-2 mb-8">
                     <h2 className={cn("text-3xl md:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r", MODE_THEMES[mode].gradient)}>
                         Humaira AI
@@ -970,9 +1037,9 @@ export default function App() {
                {/* Sidebar Header */}
                <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
                    <div className="w-10 h-10 rounded-full border-2 border-[#f97316] overflow-hidden bg-orange-100 p-0.5">
-                       <img src="https://api.dicebear.com/8.x/micah/svg?seed=Humaira" alt="Humaira" className="w-full h-full object-cover" />
+                       <img src={humairaAvatar} alt="Humaira" className="w-full h-full object-cover" />
                    </div>
-                   <span className="font-extrabold text-lg text-gray-800 dark:text-gray-100 tracking-tight">হুমায়রা এআই 💖</span>
+                   <span className="font-extrabold text-lg text-gray-900 dark:text-gray-50 tracking-tight">হুমায়রা এআই 💖</span>
                </div>
                
                {/* New Chat Button */}
@@ -986,10 +1053,10 @@ export default function App() {
                <div className="flex-1 overflow-y-auto w-full pt-2 pb-6 space-y-5 px-3">
                    {/* Roast Modes */}
                    <div>
-                       <h3 className="px-3 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">রোস্ট মোডসমূহ 🔥</h3>
+                       <h3 className="px-3 text-xs font-extrabold text-gray-700 dark:text-gray-400 uppercase tracking-widest mb-2">হুমায়রার মুডসমূহ 💖</h3>
                        <div className="flex flex-col gap-1">
-                           {(["ROMANTIC", "ROAST", "FRIENDLY_ROAST", "ROAST_MOTIVATE"] as Mode[]).map(m => (
-                               <button key={m} onClick={() => { setMode(m); setIsSidebarOpen(false); }} className={cn("px-3 py-2.5 rounded-xl font-medium text-[15px] flex items-center gap-3 w-full text-left transition-colors", mode === m ? "bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400" : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800")}>
+                           {(["NORMAL", "ROMANTIC", "FUN"] as Mode[]).map(m => (
+                               <button key={m} onClick={() => { setMode(m); setIsSidebarOpen(false); }} className={cn("px-3 py-2.5 rounded-xl font-bold text-[15px] flex items-center gap-3 w-full text-left transition-colors", mode === m ? (m === "ROMANTIC" ? "bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400" : "bg-[#f9f0e8] text-[#c2410c] dark:bg-orange-950/40 dark:text-orange-300") : "text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800")}>
                                    {MODES[m].label}
                                </button>
                            ))}
@@ -998,10 +1065,10 @@ export default function App() {
 
                    {/* Normal */}
                    <div>
-                       <h3 className="px-3 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">সাধারণ মোড 💬</h3>
+                       <h3 className="hidden">সাধারণ মোড 💬</h3>
                        <div className="flex flex-col gap-1">
-                           {(["NORMAL"] as Mode[]).map(m => (
-                               <button key={m} onClick={() => { setMode(m); setIsSidebarOpen(false); }} className={cn("px-3 py-2.5 rounded-[12px] font-bold text-[15px] flex items-center gap-3 w-full text-left transition-colors", mode === m ? "bg-[#f9f0e8] text-[#c2410c] dark:bg-orange-900/40 dark:text-orange-300" : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800")}>
+                           {([] as Mode[]).map(m => (
+                               <button key={m} onClick={() => { setMode(m); setIsSidebarOpen(false); }} className={cn("px-3 py-2.5 rounded-[12px] font-bold text-[15px] flex items-center gap-3 w-full text-left transition-colors", mode === m ? "bg-[#f9f0e8] text-[#c2410c] dark:bg-orange-900/40 dark:text-orange-300" : "text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800")}>
                                    {MODES[m].label}
                                </button>
                            ))}
@@ -1010,12 +1077,12 @@ export default function App() {
 
                    {/* Pro modes */}
                    <div>
-                       <h3 className="px-3 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">টুলস ও ভিআইপি মোডসমূহ 👑</h3>
+                       <h3 className="px-3 text-xs font-extrabold text-gray-700 dark:text-gray-400 uppercase tracking-widest mb-2">টুলস ও ভিআইপি মোডসমূহ 👑</h3>
                        <div className="flex flex-col gap-1">
                            {(["ISLAMIC", "LEGEND"] as Mode[]).map(m => {
                                const Icon = MODES[m].icon;
                                return (
-                               <button key={m} onClick={() => { setMode(m); setIsSidebarOpen(false); }} className={cn("px-3 py-2.5 rounded-[12px] font-semibold text-[15px] flex items-center gap-3 w-full text-left transition-colors", mode === m ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white" : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800")}>
+                               <button key={m} onClick={() => { setMode(m); setIsSidebarOpen(false); }} className={cn("px-3 py-2.5 rounded-[12px] font-bold text-[15px] flex items-center gap-3 w-full text-left transition-colors", mode === m ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white" : "text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800")}>
                                    <div className="w-5 h-5 rounded bg-purple-600 flex items-center justify-center text-white">
                                       <Icon className="w-3.5 h-3.5" />
                                    </div>
@@ -1028,14 +1095,14 @@ export default function App() {
                    
                    {/* Recents */}
                    <div>
-                       <h3 className="px-3 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-4">সাম্প্রতিক চ্যাটসমূহ ⏳</h3>
+                       <h3 className="px-3 text-xs font-extrabold text-gray-700 dark:text-gray-400 uppercase tracking-widest mb-2 mt-4">সাম্প্রতিক চ্যাটসমূহ ⏳</h3>
                        <div className="flex flex-col gap-1">
                            {chats.length === 0 ? (
                                <div className="px-3 py-2 text-sm text-gray-400">কোনো chat নেই</div>
                            ) : (
                                chats.map(chat => (
                                    <div key={chat.id} className="group flex items-center w-full">
-                                      <button onClick={() => { setActiveChatId(chat.id); setIsSidebarOpen(false); }} className={cn("px-3 py-2.5 flex-1 rounded-l-xl font-medium text-sm text-left truncate transition-colors", activeChatId === chat.id ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800")}>
+                                      <button onClick={() => { setActiveChatId(chat.id); setIsSidebarOpen(false); }} className={cn("px-3 py-2.5 flex-1 rounded-l-xl font-bold text-sm text-left truncate transition-colors", activeChatId === chat.id ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100" : "text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800")}>
                                           {chat.title}
                                       </button>
                                       <button onClick={(e) => deleteChat(chat.id, e)} className="p-2.5 bg-gray-50 dark:bg-gray-800 rounded-r-xl opacity-0 group-hover:opacity-100 hover:text-red-500 text-gray-400 transition-all">
