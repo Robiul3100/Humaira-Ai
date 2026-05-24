@@ -544,58 +544,35 @@ export default function App() {
          sysInstruction = sysInstruction.replace(/Humaira/g, botName).replace(/হুমায়রা/g, botName);
       }
 
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: text,
-          history: history,
-          systemInstruction: sysInstruction,
-          model: currentModel.id === "gemini-2.0-flash" ? "gemini-3.5-flash" : currentModel.id
-        }),
-        signal: abortControllerRef.current.signal
-      });
+    const response = await fetch("/api/chat", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    message: text,
+    history: history,
+    systemInstruction: sysInstruction,
+    model: currentModel.id
+  }),
+  signal: abortControllerRef.current.signal
+});
 
-      if (!response.ok) {
-        throw new Error("Failed to connect to AI server");
-      }
+if (!response.ok) {
+  throw new Error("Failed to connect to AI server");
+}
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      if (!reader) throw new Error("No response body reader");
+const data = await response.json();
 
-      let buffer = "";
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+if (data.error) {
+  fullText = `[Error: ${data.error}]`;
+} else {
+  fullText = data.text || "";
+}
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data: ")) continue;
-          
-          const rawData = trimmed.substring(6);
-          if (rawData === "[DONE]") break;
-
-          try {
-            const parsed = JSON.parse(rawData);
-            if (parsed.error) {
-              fullText = `\n[Error: ${parsed.error}]`;
-            } else if (parsed.text) {
-              fullText += parsed.text;
-            }
-            
-            setChats(prev => prev.map(c => 
-              c.id === currentChatId 
-                ? { ...c, messages: c.messages.map(m => m.id === assistantId ? { ...m, content: fullText } : m) } 
-                : c
-            ));
-          } catch (err) {}
-        }
-      }
+setChats(prev => prev.map(c =>
+  c.id === currentChatId
+    ? { ...c, messages: c.messages.map(m => m.id === assistantId ? { ...m, content: fullText } : m) }
+    : c
+));
     } catch (e: any) {
       if (e.name !== 'AbortError') {
         console.error(e);
