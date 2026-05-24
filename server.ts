@@ -35,11 +35,15 @@ async function startServer() {
         }
       });
 
-      // Strict Model validation (Default to gemini-3.5-flash as recommended)
-      let modelName = model || "gemini-3.5-flash";
-      if (modelName === "gemini-2.0-flash") {
-        modelName = "gemini-3.5-flash";
-      }
+      // ✅ FIX: Valid model list, default to gemini-2.0-flash
+      const validModels = [
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-1.5-pro",
+        "gemini-2.5-flash-preview-05-20",
+        "gemini-2.5-pro-preview-05-06",
+      ];
+      let modelName = (model && validModels.includes(model)) ? model : "gemini-2.0-flash";
 
       // Configure SSE response headers for chunk streaming
       res.writeHead(200, {
