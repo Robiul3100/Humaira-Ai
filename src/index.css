@@ -26,3 +26,63 @@ h1, h2, h3, h4, h5, h6 {
     scrollbar-width: none;
   }
 }
+
+/* Force high contrast text colors inside chat assistant replies */
+.markdown-content p, 
+.markdown-content li, 
+.markdown-content ul, 
+.markdown-content ol, 
+.markdown-content h1, 
+.markdown-content h2, 
+.markdown-content h3, 
+.markdown-content h4, 
+.markdown-content strong {
+  color: #1e293b !important; /* solid text-slate-800 in light mode */
+}
+.markdown-content a {
+  color: #f97316 !important; /* orange links */
+}
+
+/* Dark mode explicit overrides */
+.dark .markdown-content p, 
+.dark .markdown-content li, 
+.dark .markdown-content ul, 
+.dark .markdown-content ol, 
+.dark .markdown-content h1, 
+.dark .markdown-content h2, 
+.dark .markdown-content h3, 
+.dark .markdown-content h4, 
+.dark .markdown-content strong {
+  color: #f1f5f9 !important; /* solid text-slate-100 in dark mode */
+}
+
+/* Fix text inputs, textareas, and selects color contrast issues globally across the app */
+textarea, 
+input[type="text"], 
+input[type="date"], 
+input[type="search"],
+input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+select {
+  color: #0f172a !important; /* solid slate-900 in light mode */
+}
+
+textarea::placeholder,
+input::placeholder {
+  color: #64748b !important; /* slate-500 placeholder in light mode */
+}
+
+/* Dark mode explicit overrides for inputs and selects */
+.dark textarea, 
+.dark input[type="text"], 
+.dark input[type="date"], 
+.dark input[type="search"],
+.dark input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+.dark select {
+  color: #f8fafc !important; /* solid slate-50 in dark mode */
+}
+
+.dark textarea::placeholder,
+.dark input::placeholder {
+  color: #94a3b8 !important; /* slate-400 placeholder in dark mode */
+}
+
