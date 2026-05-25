@@ -35,7 +35,7 @@ interface Chat {
 }
 
 const MODELS = [
-  { id: "gemini-2.0-flash", name: "Gemini" }
+  { id: "gemini-3.5-flash", name: "Gemini" }
 ];
 
 const MODES: Record<Mode, { label: string; icon: any; category: string; prompt: string; theme: any; isPro?: boolean }> = {
@@ -183,6 +183,41 @@ const TypingIndicator = ({ theme }: { theme: "light" | "dark" }) => {
   );
 };
 
+const playSweetChime = () => {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    const now = ctx.currentTime;
+    
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(523.25, now); // C5
+    osc1.frequency.exponentialRampToValueAtTime(783.99, now + 0.15); // G5
+    gain1.gain.setValueAtTime(0.08, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.6);
+
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(659.25, now + 0.08); // E5
+    osc2.frequency.exponentialRampToValueAtTime(1046.50, now + 0.22); // C6
+    gain2.gain.setValueAtTime(0.05, now + 0.08);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.08);
+    osc2.stop(now + 0.7);
+  } catch (e) {
+    console.warn("Audio chime play barred by iframe policy or unsupported:", e);
+  }
+};
+
 export default function App() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -222,6 +257,7 @@ export default function App() {
 
   // Settings Panel States
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [editPromptMode, setEditPromptMode] = useState<Mode>("NORMAL");
   const [botName, setBotName] = useState(() => {
     return localStorage.getItem("botName") || "হুমায়রা এআই";
   });
@@ -255,6 +291,28 @@ export default function App() {
   const [soundEnabled, setSoundEnabled] = useState(() => {
     return localStorage.getItem("soundEnabled") !== "false";
   });
+
+  const resetPromptToDefault = (selectedMode: Mode) => {
+    setCustomPrompts(prev => {
+      const updated = {
+        ...prev,
+        [selectedMode]: MODES[selectedMode].prompt
+      };
+      localStorage.setItem("customPrompts", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const handleUpdatePrompt = (selectedMode: Mode, newPrompt: string) => {
+    setCustomPrompts(prev => {
+      const updated = {
+        ...prev,
+        [selectedMode]: newPrompt
+      };
+      localStorage.setItem("customPrompts", JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   const scrollRef = useRef<HTMLElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -544,35 +602,59 @@ export default function App() {
          sysInstruction = sysInstruction.replace(/Humaira/g, botName).replace(/হুমায়রা/g, botName);
       }
 
-    const response = await fetch("/api/chat", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    message: text,
-    history: history,
-    systemInstruction: sysInstruction,
-    model: currentModel.id
-  }),
-  signal: abortControllerRef.current.signal
-});
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: text,
+          history: history,
+          systemInstruction: sysInstruction,
+          model: currentModel.id === "gemini-2.0-flash" ? "gemini-3.5-flash" : currentModel.id,
+          temperature: aiCreativity
+        }),
+        signal: abortControllerRef.current.signal
+      });
 
-if (!response.ok) {
-  throw new Error("Failed to connect to AI server");
-}
+      if (!response.ok) {
+        throw new Error("Failed to connect to AI server");
+      }
 
-const data = await response.json();
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      if (!reader) throw new Error("No response body reader");
 
-if (data.error) {
-  fullText = `[Error: ${data.error}]`;
-} else {
-  fullText = data.text || "";
-}
+      let buffer = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
 
-setChats(prev => prev.map(c =>
-  c.id === currentChatId
-    ? { ...c, messages: c.messages.map(m => m.id === assistantId ? { ...m, content: fullText } : m) }
-    : c
-));
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data: ")) continue;
+          
+          const rawData = trimmed.substring(6);
+          if (rawData === "[DONE]") break;
+
+          try {
+            const parsed = JSON.parse(rawData);
+            if (parsed.error) {
+              fullText = `\n[Error: ${parsed.error}]`;
+            } else if (parsed.text) {
+              fullText += parsed.text;
+            }
+            
+            setChats(prev => prev.map(c => 
+              c.id === currentChatId 
+                ? { ...c, messages: c.messages.map(m => m.id === assistantId ? { ...m, content: fullText } : m) } 
+                : c
+            ));
+          } catch (err) {}
+        }
+      }
     } catch (e: any) {
       if (e.name !== 'AbortError') {
         console.error(e);
@@ -593,6 +675,9 @@ setChats(prev => prev.map(c =>
          }
          return currentChats;
       });
+      if (soundEnabled) {
+         playSweetChime();
+      }
       abortControllerRef.current = null;
     }
   };
@@ -987,6 +1072,182 @@ setChats(prev => prev.map(c =>
          )}
       </AnimatePresence>
 
+      {/* Settings Modal */}
+      <AnimatePresence>
+         {isSettingsOpen && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm">
+               <motion.div 
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                  className={cn("w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]", theme === "dark" ? "bg-gray-900 border border-gray-700" : "bg-white border border-gray-100")}
+               >
+                  {/* Header */}
+                  <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-800 shrink-0">
+                     <div className="flex items-center gap-2.5">
+                        <Settings className="w-5 h-5 text-orange-500 animate-spin-slow" />
+                        <h2 className="font-extrabold text-xl tracking-tight text-gray-800 dark:text-gray-100">অ্যাপলিকেশন সেটিংস ⚙️</h2>
+                     </div>
+                     <button onClick={() => { setIsSettingsOpen(false); if (soundEnabled) playSweetChime(); }} className="p-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500 dark:text-gray-400 cursor-pointer">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                     </button>
+                  </div>
+
+                  {/* Body */}
+                  <div className="p-5 overflow-y-auto flex flex-col gap-5 scrollbar-thin">
+                     
+                     {/* Chatbot Profile Name */}
+                     <div className="flex flex-col gap-1.5">
+                        <label className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">চ্যাটবটের নাম (Chatbot Name)</label>
+                        <input 
+                           type="text" 
+                           value={botName} 
+                           onChange={(e) => {
+                              setBotName(e.target.value);
+                              localStorage.setItem("botName", e.target.value);
+                           }} 
+                           className={cn("w-full rounded-xl p-3 font-semibold text-sm border focus:ring-2 focus:ring-[#f97316] outline-none transition-all", theme === "dark" ? "bg-gray-800 border-gray-700 text-white placeholder-gray-550" : "bg-gray-50 border-gray-200 text-gray-800")}
+                           placeholder="চ্যাটবটের নাম লিখুন..."
+                        />
+                     </div>
+
+                     {/* AI Creativity (Temperature) Slider */}
+                     <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                           <span>এআই ক্রিয়েটিভিটি (Temperature)</span>
+                           <span className="text-[#f97316] font-extrabold">{aiCreativity.toFixed(1)}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                           <Sliders className="w-4 h-4 text-gray-405" />
+                           <input 
+                              type="range" 
+                              min="0.1" 
+                              max="1.5" 
+                              step="0.1"
+                              value={aiCreativity} 
+                              onChange={(e) => {
+                                 const val = Number(e.target.value);
+                                 setAiCreativity(val);
+                                 localStorage.setItem("aiCreativity", String(val));
+                              }} 
+                              className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#f97316]"
+                           />
+                        </div>
+                        <div className="flex justify-between text-[11px] font-bold text-gray-400 dark:text-gray-500 select-none">
+                           <span>শান্ত (Strict)</span>
+                           <span>ভারসাম্যপূর্ণ (Balanced)</span>
+                           <span>সৃজনশীল (Creative)</span>
+                        </div>
+                     </div>
+
+                     {/* Audio toggle */}
+                     <div className="flex items-center justify-between p-3.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/10">
+                        <div className="flex flex-col gap-0.5">
+                           <span className="text-xs font-bold text-gray-700 dark:text-gray-200">সাউন্ড ইফেক্ট (Sound Effects)</span>
+                           <span className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold">মেসেজ শেষ হলে চমৎকার চিম টিউন বাজবে</span>
+                        </div>
+                        <button 
+                           onClick={() => {
+                              const next = !soundEnabled;
+                              setSoundEnabled(next);
+                              localStorage.setItem("soundEnabled", String(next));
+                              if (next) playSweetChime();
+                           }}
+                           className={cn("w-12 h-6 rounded-full p-1 transition-colors relative duration-300 cursor-pointer", soundEnabled ? "bg-[#f97316]" : "bg-gray-300 dark:bg-gray-700")}
+                        >
+                           <div className={cn("w-4 h-4 rounded-full bg-white shadow-md transform transition-all duration-300", soundEnabled ? "translate-x-6" : "translate-x-0")} />
+                        </button>
+                     </div>
+
+                     <div className="h-[1px] w-full bg-gray-200 dark:bg-gray-800 my-1" />
+
+                     {/* Mode System Prompts Customize */}
+                     <div className="flex flex-col gap-2.5">
+                        <label className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">মুড অনুযায়ী সিস্টেম প্রম্পট (System Prompt)</label>
+                        
+                        <div className="flex flex-wrap gap-1 bg-gray-100 dark:bg-gray-800/50 p-1 rounded-xl">
+                           {(Object.keys(MODES) as Mode[]).map((mKey) => (
+                              <button
+                                 key={mKey}
+                                 onClick={() => {
+                                    setEditPromptMode(mKey);
+                                 }}
+                                 className={cn(
+                                    "px-2 px-1.5 text-[11px] font-bold rounded-lg transition-all flex-1 text-center shrink-0 min-w-[65px] cursor-pointer",
+                                    editPromptMode === mKey
+                                       ? "bg-white dark:bg-gray-700 text-[#f97316] dark:text-white shadow-sm"
+                                       : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                                 )}
+                              >
+                                 {MODES[mKey].label.split(" ")[0]}
+                              </button>
+                           ))}
+                        </div>
+
+                        {/* TextArea for editing the active prompt */}
+                        <div className="relative">
+                           <textarea
+                              rows={5}
+                              value={customPrompts[editPromptMode] || MODES[editPromptMode].prompt}
+                              onChange={(e) => handleUpdatePrompt(editPromptMode, e.target.value)}
+                              className={cn("w-full rounded-xl p-3 font-semibold text-xs border focus:ring-2 focus:ring-[#f97316] outline-none transition-all leading-relaxed", theme === "dark" ? "bg-gray-800 border-gray-700 text-gray-100" : "bg-gray-50 border-gray-200 text-gray-700")}
+                           />
+                           <button 
+                              onClick={() => {
+                                 resetPromptToDefault(editPromptMode);
+                                 playSweetChime();
+                              }}
+                              className="absolute bottom-3 right-3 p-1.5 bg-red-500 hover:bg-red-600 rounded-lg text-white font-bold transition-all shadow-md active:scale-95 flex items-center gap-1 text-[10px] cursor-pointer"
+                              title="ডিফল্ট প্রম্পটে রিসেট করুন"
+                           >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              রিসেট
+                           </button>
+                        </div>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-505 font-semibold leading-relaxed">
+                           💡 হুমাইরা {MODES[editPromptMode].label} এ কীভাবে কথা বলবে তা সম্পূর্ণরূপে এই প্রম্পট দ্বারা নিয়ন্ত্রিত হয়।
+                        </p>
+                     </div>
+
+                     <div className="h-[1px] w-full bg-gray-200 dark:bg-gray-800 my-1" />
+
+                     {/* Danger actions */}
+                     <div className="flex flex-col gap-2">
+                        <span className="text-[11px] font-bold text-red-500 uppercase tracking-widest">বিপজ্জনক অ্যাকশন (Danger Zone)</span>
+                        <button 
+                           onClick={() => {
+                              if (confirm("আপনি কি নিশ্চিতভাবে সব চ্যাট ডিলিট করতে চান? এটি আর ফিরিয়ে আনা সম্ভব নয়।")) {
+                                 setChats([]);
+                                 setActiveChatId(null);
+                                 setIsSettingsOpen(false);
+                                 if (soundEnabled) playSweetChime();
+                              }
+                           }}
+                           className="w-full py-2.5 rounded-xl border border-red-200 dark:border-red-950/40 hover:bg-red-500 hover:text-white bg-red-50/50 dark:bg-red-950/10 text-red-600 dark:text-red-400 flex items-center justify-center gap-2 font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer min-h-[40px]"
+                        >
+                           🗑️ সমস্ত চ্যাট হিস্ট্রি মুছে ফেলুন
+                        </button>
+                     </div>
+
+                  </div>
+
+                  {/* Footer */}
+                  <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex justify-end shrink-0 bg-gray-50 dark:bg-gray-900/40">
+                     <button 
+                        onClick={() => {
+                           setIsSettingsOpen(false);
+                           if (soundEnabled) playSweetChime();
+                        }}
+                        className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-[#f97316] text-white font-extrabold text-sm hover:brightness-105 active:scale-95 transition-all shadow-md cursor-pointer"
+                     >
+                        সংরক্ষণ ও বন্ধ করুন
+                     </button>
+                  </div>
+               </motion.div>
+            </div>
+         )}
+      </AnimatePresence>
+
       {/* Drawer Overlay */}
       <AnimatePresence>
          {isSidebarOpen && (
@@ -1116,6 +1377,14 @@ setChats(prev => prev.map(c =>
                         )}
                      </div>
 
+                      <button 
+                         onClick={() => { setIsSettingsOpen(true); setIsSidebarOpen(false); }} 
+                         className="w-full py-2.5 rounded-[12px] border border-orange-200 dark:border-orange-950/50 bg-orange-50/50 dark:bg-orange-950/20 flex items-center justify-center gap-2 font-extrabold text-[13px] text-[#f97316] dark:text-orange-400 hover:bg-orange-100/50 dark:hover:bg-orange-900/30 shadow-sm transition-all cursor-pointer min-h-[40px] mb-1.5"
+                      >
+                         <Settings className="w-4 h-4 animate-spin-slow" />
+                         অ্যাডভান্সড সেটিংস প্যানেল ⚙️
+                      </button>
+
                      <div className="flex items-center gap-2">
                         <button onClick={() => setTheme(theme === "light" ? "dark" : "light")} className="flex-1 py-2.5 rounded-[12px] border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-center gap-2 font-semibold text-[13px] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-colors">
                            {theme === "light" ? <Moon className="w-4 h-4"/> : <Sun className="w-4 h-4"/>}
@@ -1181,6 +1450,14 @@ setChats(prev => prev.map(c =>
         }
         .animate-fade-in {
           animation: fadeIn 0.25s ease-out forwards;
+        }
+
+        @keyframes spinSlow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+          animation: spinSlow 12s linear infinite;
         }
         `}
       </style>
