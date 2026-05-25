@@ -23,6 +23,7 @@ interface Message {
   timestamp: Date;
   modelId?: string;
   attachments?: string[];
+  status?: "sent" | "read";
 }
 
 interface Chat {
@@ -216,6 +217,52 @@ const playSweetChime = () => {
   } catch (e) {
     console.warn("Audio chime play barred by iframe policy or unsupported:", e);
   }
+};
+
+const DoubleCheck = ({ isRead, accentColor }: { isRead: boolean; accentColor: string }) => {
+  return (
+    <div className="inline-flex items-center justify-center relative w-3.5 h-3 ml-0.5 select-none" style={{ minWidth: "14px" }}>
+      {/* First checkmark */}
+      <motion.svg
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.15 }}
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="w-3 h-3 absolute left-[1px] top-[1px] transition-colors duration-300"
+        style={{ color: isRead ? accentColor : "#9ca3af" }}
+      >
+        <polyline points="20 6 9 17 4 12" />
+      </motion.svg>
+      {/* Second checkmark for double-check */}
+      <AnimatePresence>
+        {isRead && (
+          <motion.svg
+            initial={{ scale: 0, opacity: 0, x: 4 }}
+            animate={{ scale: 1, opacity: 1, x: 4 }}
+            exit={{ scale: 0, opacity: 0, x: 4 }}
+            transition={{ type: "spring", stiffness: 350, damping: 18 }}
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="w-3 h-3 absolute left-[1px] top-[1px]"
+            style={{ color: accentColor }}
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </motion.svg>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 };
 
 export default function App() {
@@ -556,7 +603,7 @@ export default function App() {
        setActiveChatId(newChat.id);
     }
 
-    const userMsg: Message = { id: Math.random().toString(36).substring(7), role: "user", content: text, timestamp: new Date() };
+    const userMsg: Message = { id: Math.random().toString(36).substring(7), role: "user", content: text, timestamp: new Date(), status: "sent" };
 
     setChats(prev => prev.map(c => 
       c.id === currentChatId 
@@ -587,7 +634,7 @@ export default function App() {
     const assistantId = Math.random().toString(36).substring(7);
 
     // Initial assistant message placeholder
-    const assistantMsg: Message = { id: assistantId, role: "assistant", content: "", timestamp: new Date() };
+    const assistantMsg: Message = { id: assistantId, role: "assistant", content: "", timestamp: new Date(), status: "sent" };
     setChats(prev => prev.map(c => c.id === currentChatId ? { ...c, messages: [...c.messages, assistantMsg] } : c));
 
     try {
@@ -671,7 +718,15 @@ export default function App() {
          const currentChats = [...prev];
          const updatedChatIndex = currentChats.findIndex(c => c.id === currentChatId);
          if (updatedChatIndex !== -1) {
-             syncChatData(currentChats[updatedChatIndex]);
+             const chat = { ...currentChats[updatedChatIndex] };
+             chat.messages = chat.messages.map(m => {
+                 if (m.status !== "read") {
+                     return { ...m, status: "read" as const };
+                 }
+                 return m;
+             });
+             currentChats[updatedChatIndex] = chat;
+             syncChatData(chat);
          }
          return currentChats;
       });
@@ -895,17 +950,38 @@ export default function App() {
                               <img src={humairaAvatar} alt="Humaira" className="w-full h-full rounded-full object-cover" />
                            </motion.div>
                         )}
-                        <div className={cn("px-5 py-3.5 max-w-[78%] sm:max-w-[82%] rounded-[20px]", 
-                           m.role === "user" ? "text-white rounded-br-[4px] shadow-sm font-medium" : 
-                           theme === "dark" ? "bg-gray-800 text-gray-50 rounded-bl-[4px] shadow-sm border border-gray-750" : "bg-white text-gray-800 rounded-bl-[4px] shadow-md border border-gray-100"
-                        )}
-                        style={m.role === "user" ? { backgroundColor: MODE_THEMES[mode].accent } : undefined}
-                        >
-                            {m.role === "assistant" ? (
-                               <div className="markdown-content" dangerouslySetInnerHTML={parseThinkingAndSteps(m.content)} />
-                            ) : (
-                               <p className="whitespace-pre-wrap">{m.content}</p>
-                            )}
+                        <div className={cn("flex flex-col gap-1.5 max-w-[78%] sm:max-w-[82%]", m.role === "user" ? "items-end" : "items-start")}>
+                           <div className={cn("px-5 py-3.5 rounded-[20px] w-full", 
+                              m.role === "user" ? "text-white rounded-br-[4px] shadow-sm font-medium" : 
+                              theme === "dark" ? "bg-gray-800 text-gray-50 rounded-bl-[4px] shadow-sm border border-gray-750" : "bg-white text-gray-800 rounded-bl-[4px] shadow-md border border-gray-100"
+                           )}
+                           style={m.role === "user" ? { backgroundColor: MODE_THEMES[mode].accent } : undefined}
+                           >
+                               {m.role === "assistant" ? (
+                                  <div className="markdown-content" dangerouslySetInnerHTML={parseThinkingAndSteps(m.content)} />
+                               ) : (
+                                  <p className="whitespace-pre-wrap">{m.content}</p>
+                               )}
+                           </div>
+                           <div className="flex items-center gap-1.5 px-1.5 text-[9px] select-none text-gray-400 dark:text-gray-500 font-bold">
+                              <span>
+                                 {m.timestamp instanceof Date && !isNaN(m.timestamp.getTime()) 
+                                    ? m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+                                    : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                              {m.role === "user" && (
+                                 <DoubleCheck 
+                                    isRead={m.status === "read"} 
+                                    accentColor={MODE_THEMES[mode].accent} 
+                                 />
+                              )}
+                              {m.role === "assistant" && (
+                                 <DoubleCheck 
+                                    isRead={true} 
+                                    accentColor={m.status === "read" ? MODE_THEMES[mode].accent : "#9ca3af"} 
+                                 />
+                              )}
+                           </div>
                         </div>
                      </div>
                   );
