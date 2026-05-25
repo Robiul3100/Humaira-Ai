@@ -1,10 +1,10 @@
 {
-  "projectId": "tangential-ensign-607pf",
-  "appId": "1:125069102587:web:1e268631cd3eb6e3588f5e",
-  "apiKey": "AIzaSyATtn_7iYnKFopnMug5D1ap_fV6d4GN27k",
-  "authDomain": "tangential-ensign-607pf.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-a5c0f10a-9027-4e82-9215-69dcc73373ad",
-  "storageBucket": "tangential-ensign-607pf.firebasestorage.app",
-  "messagingSenderId": "125069102587",
+  "projectId": "humaira-ai",
+  "appId": "1:654110535401:web:8ac7555a01a0a8ad2dca78",
+  "apiKey": "AIzaSyAfZzyTSRZZrDhg4jjVbv4SrGfmDkDf_Yg",
+  "authDomain": "humaira-ai.firebaseapp.com",
+  "databaseURL": "https://humaira-ai-default-rtdb.asia-southeast1.firebasedatabase.app",
+  "storageBucket": "humaira-ai.firebasestorage.app",
+  "messagingSenderId": "654110535401",
   "measurementId": ""
 }

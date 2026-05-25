@@ -14,10 +14,10 @@ async function startServer() {
 
   // API Route for chatting with Gemini
   app.post("/api/chat", async (req, res) => {
-    const { message, history, systemInstruction, model, temperature } = req.body;
+    const { message, history, attachments, systemInstruction, model, temperature } = req.body;
 
-    if (!message) {
-      return res.status(400).json({ error: "Message is required" });
+    if (!message && (!attachments || attachments.length === 0)) {
+      return res.status(400).json({ error: "Message or attachment is required" });
     }
 
     try {
@@ -63,7 +63,33 @@ async function startServer() {
         history: formattedHistory
       });
 
-      const responseStream = await chatSession.sendMessageStream({ message });
+      // Construct message payload supporting text and base64 image attachments
+      let messagePayload: any = message;
+
+      if (attachments && attachments.length > 0) {
+        messagePayload = [];
+        attachments.forEach((att: string) => {
+          try {
+            const parts = att.split(",");
+            if (parts.length >= 2) {
+              const header = parts[0];
+              const base64Data = parts[1];
+              const mimeType = header.match(/:(.*?);/)?.[1] || "image/png";
+              messagePayload.push({
+                inlineData: {
+                  mimeType: mimeType,
+                  data: base64Data
+                }
+              });
+            }
+          } catch (e) {
+            console.error("Failed to parse attachment data:", e);
+          }
+        });
+        messagePayload.push({ text: message || "এই ছবিটিতে কি আছে তা বর্ণনা করো।" });
+      }
+
+      const responseStream = await chatSession.sendMessageStream({ message: messagePayload });
 
       for await (const chunk of responseStream) {
         const text = chunk.text || "";

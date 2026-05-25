@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { 
-  Menu, Star, Plus, Heart, Flame, Smile, Trophy, MessageCircle, Moon, Anchor, Sun, LogOut, Mic, Layout, User, Send, Check, Shield, Settings, Sliders, RotateCcw
+  Menu, Star, Plus, Heart, Flame, Smile, Trophy, MessageCircle, Moon, Anchor, Sun, LogOut, Mic, Layout, User, Send, Check, Shield, Settings, Sliders, RotateCcw, Paperclip, Image, X, Trash2, Copy, Sparkles
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { marked } from "marked";
@@ -286,6 +286,172 @@ export default function App() {
   const [inputValue, setInputValue] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   
+  // Custom states and refs for chat input enhancements
+  const [attachedFiles, setAttachedFiles] = useState<string[]>([]);
+  const [selectedLightboxImage, setSelectedLightboxImage] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
+
+  const toggleSpeechRecognition = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("দুঃখিত, আপনার ব্রাউজার ভয়েস টাইপিং সমর্থন করে না। Google Chrome ব্রাউজার ব্যবহার করুন।");
+      return;
+    }
+
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+    } else {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = "bn-BD"; // Bengali support priority
+      
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          setInputValue(prev => {
+            const separator = prev.trim() ? " " : "";
+            return prev + separator + transcript;
+          });
+        }
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file: any) => {
+      if (!file.type.startsWith("image/")) {
+        alert("শুধুমাত্র ইমেজ ফাইল আপলোড করা সম্ভব!");
+        return;
+      }
+      if (file.size > 1.2 * 1024 * 1024) { // keep size optimized for firestore
+        alert("ইমেজ সাইজ ১.২ মেগাবাইট বা তার চেয়ে কম হতে হবে!");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        if (base64) {
+          setAttachedFiles(prev => {
+            if (prev.includes(base64)) return prev;
+            return [...prev, base64];
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file: any) => {
+      if (!file.type.startsWith("image/")) {
+        alert("শুধুমাত্র ইমেজ ফাইল আপলোড করা সম্ভব!");
+        return;
+      }
+      if (file.size > 1.2 * 1024 * 1024) {
+        alert("ইমেজ সাইজ ১.২ মেগাবাইট বা তার চেয়ে কম হতে হবে!");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        if (base64) {
+          setAttachedFiles(prev => {
+            if (prev.includes(base64)) return prev;
+            return [...prev, base64];
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf("image") !== -1) {
+        const file = item.getAsFile();
+        if (file) {
+          if (file.size > 1.2 * 1024 * 1024) {
+            alert("ইমেজ সাইজ ১.২ মেগাবাইট বা তার চেয়ে কম হতে হবে!");
+            continue;
+          }
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const base64 = event.target?.result as string;
+            if (base64) {
+              setAttachedFiles(prev => {
+                if (prev.includes(base64)) return prev;
+                return [...prev, base64];
+              });
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+    }
+  };
+
+  const removeAttachedFile = (index: number) => {
+    setAttachedFiles(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleCopyMessage = (msgId: string, content: string) => {
+    navigator.clipboard.writeText(content);
+    setCopiedMessageId(msgId);
+    setTimeout(() => {
+      setCopiedMessageId(null);
+    }, 2000);
+  };
+  
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [userRole, setUserRole] = useState<"user"|"admin">("user");
   const [userName, setUserName] = useState("Ayan");
@@ -406,9 +572,18 @@ export default function App() {
   }, [mode, activeChatId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (e.target.value.length > 1500) return;
     setInputValue(e.target.value);
     localStorage.setItem(`chatDraft_${activeChatId || 'home'}`, e.target.value);
   };
+
+  // Auto-resize the text area dynamically
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+    }
+  }, [inputValue]);
 
   const handleAiAvatarChange = (seed: string) => {
     setAiAvatarSeed(seed);
@@ -584,14 +759,15 @@ export default function App() {
 
   const handleSendMessage = async (customText?: string) => {
     const text = (customText || inputValue).trim();
-    if (!text || isGenerating) return;
+    if ((!text && attachedFiles.length === 0) || isGenerating) return;
 
     let currentChatId = activeChatId;
 
     if (!currentChatId) {
+       const chatTitle = text ? text.substring(0, 30) : "ইমেজ চ্যাট";
        const newChat: Chat = {
           id: Math.random().toString(36).substring(7),
-          title: text.substring(0, 30),
+          title: chatTitle,
           messages: [],
           mode: mode,
           createdAt: new Date(),
@@ -603,15 +779,23 @@ export default function App() {
        setActiveChatId(newChat.id);
     }
 
-    const userMsg: Message = { id: Math.random().toString(36).substring(7), role: "user", content: text, timestamp: new Date(), status: "sent" };
+    const userMsg: Message = { 
+      id: Math.random().toString(36).substring(7), 
+      role: "user", 
+      content: text, 
+      timestamp: new Date(), 
+      status: "sent",
+      attachments: attachedFiles.length > 0 ? [...attachedFiles] : undefined
+    };
 
     setChats(prev => prev.map(c => 
       c.id === currentChatId 
-        ? { ...c, messages: [...c.messages, userMsg], title: c.messages.length === 0 ? text.substring(0, 30) : c.title, updatedAt: new Date() } 
+        ? { ...c, messages: [...c.messages, userMsg], title: c.messages.length === 0 ? (text ? text.substring(0, 30) : "ইমেজ চ্যাট") : c.title, updatedAt: new Date() } 
         : c
     ));
 
     setInputValue("");
+    setAttachedFiles([]);
     localStorage.removeItem(`chatDraft_${currentChatId || 'home'}`);
 
     if (firebaseUser) {
@@ -655,6 +839,7 @@ export default function App() {
         body: JSON.stringify({
           message: text,
           history: history,
+          attachments: userMsg.attachments,
           systemInstruction: sysInstruction,
           model: currentModel.id === "gemini-2.0-flash" ? "gemini-3.5-flash" : currentModel.id,
           temperature: aiCreativity
@@ -742,14 +927,19 @@ export default function App() {
      return (
          <form 
            onSubmit={e => { e.preventDefault(); handleSendMessage(); }} 
-           className={cn("flex flex-col gap-1.5 rounded-[24px] border transition-all duration-300 relative w-full", 
-              theme === "dark" 
-                ? cn("border-gray-800 focus-within:border-[#f97316]/80 focus-within:ring-2 focus-within:ring-[#f97316]/10", 
-                     isCentered ? "shadow-xl bg-gray-900/90" : "shadow-xl bg-gray-950/80 backdrop-blur-md"
-                  ) 
-                : cn("border-gray-200 focus-within:border-[#f97316]/80 focus-within:ring-2 focus-within:ring-[#f97316]/5", 
-                     isCentered ? "shadow-[0_8px_30px_rgba(0,0,0,0.06)] bg-white" : "shadow-[0_8px_30px_rgba(0,0,0,0.06)] bg-white/95 backdrop-blur-md"
-                  ),
+           onDragOver={handleDragOver}
+           onDragLeave={handleDragLeave}
+           onDrop={handleDrop}
+           className={cn("flex flex-col gap-1 rounded-[24px] border transition-all duration-300 relative w-full", 
+              isDragging
+                ? "border-dashed border-2 border-orange-500 bg-orange-500/10 dark:bg-orange-500/5 animate-pulse"
+                : (theme === "dark" 
+                   ? cn("border-gray-800 focus-within:border-[#f97316]/80 focus-within:ring-2 focus-within:ring-[#f97316]/10", 
+                        isCentered ? "shadow-xl bg-gray-900/90" : "shadow-xl bg-gray-950/80 backdrop-blur-md"
+                     ) 
+                   : cn("border-gray-200 focus-within:border-[#f97316]/80 focus-within:ring-2 focus-within:ring-[#f97316]/5", 
+                        isCentered ? "shadow-[0_8px_30px_rgba(0,0,0,0.06)] bg-white" : "shadow-[0_8px_30px_rgba(0,0,0,0.06)] bg-white/95 backdrop-blur-md"
+                     )),
               activeChat ? "" : "border-orange-500/40"
            )}
            style={{ 
@@ -758,11 +948,48 @@ export default function App() {
              boxShadow: isModeSelectorOpen ? `0 0 15px ${t.accent}20` : undefined
            }}
          >
+           {/* Hidden File Input for Image Attachments */}
+           <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleFileChange} 
+              multiple 
+              accept="image/*" 
+              className="hidden" 
+           />
+
+           {/* Dynamic Image Attachment Preview Row */}
+           {attachedFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2 px-3 pt-2 pb-1 border-b border-gray-100 dark:border-gray-800/40">
+                 <AnimatePresence>
+                    {attachedFiles.map((file, idx) => (
+                       <motion.div
+                          initial={{ opacity: 0, scale: 0.85 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.85 }}
+                          key={idx}
+                          className="relative w-11 h-11 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 group shadow-sm shrink-0"
+                       >
+                          <img src={file} alt="Attached Preview" className="w-full h-full object-cover" />
+                          <button
+                             type="button"
+                             onClick={() => removeAttachedFile(idx)}
+                             className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity duration-200 cursor-pointer"
+                          >
+                             <X className="w-3.5 h-3.5" />
+                          </button>
+                       </motion.div>
+                    ))}
+                 </AnimatePresence>
+              </div>
+           )}
+
            <textarea
               style={{ color: theme === "dark" ? "#f3f4f6" : "inherit" }}
               ref={textareaRef}
               value={inputValue}
               onChange={handleInputChange}
+              onPaste={handlePaste}
               onKeyDown={(e) => { if(e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
               placeholder={isCentered ? "কাউকে প্রেম নিবেদন করো বা কিছু জিজ্ঞেস করো..." : "কিছু জিজ্ঞেস করো..."}
               rows={1}
@@ -825,17 +1052,61 @@ export default function App() {
               </div>
               
               <div className="flex items-center gap-2">
-                 {inputValue.trim() ? (
-                    <button type="submit" className={cn("p-2.5 text-white hover:brightness-105 active:scale-95 rounded-full transition-all shadow-md disabled:opacity-50 flex items-center justify-center cursor-pointer min-w-[44px] min-h-[44px] bg-gradient-to-r", t.buttonBg)} disabled={isGenerating}>
-                        <Send className="w-4.5 h-4.5 ml-0.5" />
+                 {/* Attachment Clickable Trigger Icon */}
+                 <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    title="ছবি আপলোড করুন"
+                    className={cn(
+                       "p-2 rounded-full transition-colors active:scale-95 flex items-center justify-center cursor-pointer min-w-[38px] min-h-[38px]",
+                       attachedFiles.length > 0
+                          ? "text-orange-500 bg-orange-100/30 dark:bg-orange-950/20"
+                          : "text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    )}
+                 >
+                    <Paperclip className="w-4 h-4" />
+                 </button>
+
+                 {/* Character Limitation Meter Counter */}
+                 {inputValue.length > 800 && (
+                    <span 
+                       className={cn(
+                          "text-[9px] font-bold px-1.5 py-0.5 rounded leading-none transition-all select-none",
+                          inputValue.length >= 1300
+                             ? "text-red-500 bg-red-100/30 dark:bg-red-950/20"
+                             : "text-amber-500 bg-amber-100/30 dark:bg-amber-950/20"
+                       )}
+                    >
+                       {inputValue.length} / 1500
+                    </span>
+                 )}
+
+                 {(inputValue.trim() || attachedFiles.length > 0) ? (
+                    <button type="submit" className={cn("p-2 text-white hover:brightness-105 active:scale-95 rounded-full transition-all shadow-md disabled:opacity-50 flex items-center justify-center cursor-pointer min-w-[38px] min-h-[38px] bg-gradient-to-r", t.buttonBg)} disabled={isGenerating}>
+                        <Send className="w-3.5 h-3.5 ml-0.5" />
                     </button>
                  ) : (
-                    <button type="button" className="p-2.5 text-gray-500 hover:text-gray-900 dark:hover:text-white rounded-full transition-colors active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center">
-                        <Mic className="w-4.5 h-4.5" />
+                    <button 
+                       type="button" 
+                       onClick={toggleSpeechRecognition}
+                       className={cn(
+                          "p-2 rounded-full transition-all min-w-[38px] min-h-[38px] flex items-center justify-center relative",
+                          isListening 
+                             ? "text-white bg-red-500 shadow-lg shadow-red-500/40 animate-pulse" 
+                             : "text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+                       )}
+                    >
+                        {isListening && (
+                          <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                             <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+                          </span>
+                        )}
+                        <Mic className={cn("w-4 h-4", isListening && "scale-110")} />
                     </button>
                  )}
               </div>
-           </div>
+            </div>
          </form>
      );
   };
@@ -854,7 +1125,7 @@ export default function App() {
               {activeChatId ? (
                 <button 
                   onClick={() => setActiveChatId(null)}
-                  className="p-1 px-2.5 -ml-1.5 rounded-xl border border-gray-200 dark:border-gray-705 bg-gray-50/50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-xs font-bold active:bg-gray-100 dark:active:bg-gray-700 transition-all shadow-sm select-none"
+                  className="p-1 px-2.5 -ml-1.5 rounded-xl border border-gray-200 dark:border-gray-755 bg-gray-50/50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-xs font-bold active:bg-gray-100 dark:active:bg-gray-700 transition-all shadow-sm select-none"
                 >
                   ◀ ফিরুন
                 </button>
@@ -926,7 +1197,37 @@ export default function App() {
                     {renderInputForm(true)}
                 </div>
 
-
+                {/* Clean, dynamic prompt suggestions like Gemini */}
+                <div className="grid grid-cols-2 gap-3 w-full mt-8 max-w-xl">
+                   {[
+                      { text: "মিষ্টি প্রেমের কবিতা লেখো ✍️", prompt: "আমার জন্য একটি মিষ্টি প্রেমের কবিতা লেখো।" },
+                      { text: "মুড অফ থাকলে কি করব? 🌸", prompt: "হুমায়রা, আমার মুড অফ। মন ভালো করার কিছু মিষ্টি উপায় বলো তো।" },
+                      { text: "প্রথম ডেটের চমৎকার আইডিয়া 💫", prompt: "আমাদের প্রথম ডেট কেমন হওয়া উচিত? একটি সুন্দর প্ল্যান দাও।" },
+                      { text: "আজকের স্পেশাল রেসিপি বলো 🥯", prompt: "আজকে চমৎকার কোনো মিষ্টি বা স্পেশাল ডিশ তৈরির রেসিপি বলো।" }
+                   ].map((item, idx) => (
+                      <motion.button
+                         key={idx}
+                         whileHover={{ scale: 1.02, y: -2 }}
+                         whileTap={{ scale: 0.98 }}
+                         onClick={() => {
+                            setInputValue(item.prompt);
+                            if (textareaRef.current) {
+                               textareaRef.current.focus();
+                            }
+                         }}
+                         type="button"
+                         className={cn(
+                            "p-3.5 text-left rounded-3xl text-xs sm:text-sm font-bold transition-all border shadow-sm flex flex-col justify-between items-start h-24 hover:shadow-md cursor-pointer",
+                            theme === "dark" 
+                               ? "bg-gray-900/60 border-gray-800/85 hover:border-orange-500/30 text-gray-200" 
+                               : "bg-white border-gray-100/90 hover:border-orange-500/20 text-gray-700"
+                         )}
+                      >
+                         <span className="line-clamp-2 leading-relaxed">{item.text}</span>
+                         <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">✦ Humaira AI</span>
+                      </motion.button>
+                   ))}
+                </div>
 
                 <div className="mt-10 text-center text-[11px] text-gray-400 dark:text-gray-500 font-medium">
                    RSF ROBIUL দ্বারা ডেভেলপ করা Humaira AI চ্যাটবট
@@ -939,31 +1240,79 @@ export default function App() {
                      return null; // Skip rendering empty thinking assistant message
                   }
                   return (
-                     <div key={m.id} className={cn("flex w-full gap-2.5 items-end", m.role === "user" ? "justify-end" : "justify-start")}>
+                     <div 
+                        key={m.id} 
+                        className={cn(
+                           "flex w-full gap-3 sm:gap-4 items-start animate-fade-in", 
+                           m.role === "user" ? "justify-end" : "justify-start"
+                        )}
+                     >
+                        {/* LEFT SIDE: Assistant Profile Picture */}
                         {m.role === "assistant" && (
                            <motion.div 
-                             className="w-8 h-8 rounded-full border overflow-hidden flex items-center justify-center p-0.5 bg-amber-50 shadow-sm shrink-0"
+                             className="w-[38px] h-[38px] sm:w-[42px] sm:h-[42px] rounded-full border overflow-hidden flex items-center justify-center p-0.5 bg-amber-50 dark:bg-amber-950/20 shadow-md shrink-0 self-start transition-all"
                              style={{ borderColor: MODE_THEMES[mode].accent }}
-                             animate={{ scale: [1, 1.05, 1] }}
-                             transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                             whileHover={{ scale: 1.05 }}
                            >
                               <img src={humairaAvatar} alt="Humaira" className="w-full h-full rounded-full object-cover" />
                            </motion.div>
                         )}
-                        <div className={cn("flex flex-col gap-1.5 max-w-[78%] sm:max-w-[82%]", m.role === "user" ? "items-end" : "items-start")}>
-                           <div className={cn("px-5 py-3.5 rounded-[20px] w-full", 
-                              m.role === "user" ? "text-white rounded-br-[4px] shadow-sm font-medium" : 
-                              theme === "dark" ? "bg-gray-800 text-gray-50 rounded-bl-[4px] shadow-sm border border-gray-750" : "bg-white text-gray-800 rounded-bl-[4px] shadow-md border border-gray-100"
+                        
+                        <div className={cn("flex flex-col gap-1.5 max-w-[76%] sm:max-w-[80%]", m.role === "user" ? "items-end" : "items-start")}>
+                           <div className={cn(
+                              "px-4.5 py-3 rounded-2xl w-full text-sm sm:text-[15px] leading-relaxed relative group shadow-sm transition-all duration-300", 
+                              m.role === "user" 
+                                 ? "text-white rounded-tr-none shadow-[0_4px_12px_rgba(249,115,22,0.12)] bg-gradient-to-r" 
+                                 : theme === "dark" 
+                                    ? "bg-gray-800/90 text-gray-50 rounded-tl-none border border-gray-750" 
+                                    : "bg-white text-gray-800 rounded-tl-none border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)]"
                            )}
-                           style={m.role === "user" ? { backgroundColor: MODE_THEMES[mode].accent } : undefined}
+                           style={m.role === "user" ? { 
+                              backgroundImage: `linear-gradient(135deg, ${MODE_THEMES[mode].accent}, ${MODE_THEMES[mode].accent}ee)`
+                           } : undefined}
                            >
-                               {m.role === "assistant" ? (
-                                  <div className="markdown-content" dangerouslySetInnerHTML={parseThinkingAndSteps(m.content)} />
+                               {m.attachments && m.attachments.length > 0 && (
+                                  <div className="flex flex-wrap gap-2 mb-2 p-0.5">
+                                     {m.attachments.map((imgSrc, idx) => (
+                                        <motion.img 
+                                           key={idx} 
+                                           src={imgSrc} 
+                                           alt="Attachment" 
+                                           whileHover={{ scale: 1.02 }}
+                                           className="max-w-[150px] max-h-[120px] rounded-xl object-cover cursor-zoom-in border border-black/10 dark:border-white/10 shadow-sm inline-block"
+                                           onClick={() => setSelectedLightboxImage(imgSrc)}
+                                        />
+                                     ))}
+                                  </div>
+                                )}
+                                {m.role === "assistant" ? (
+                                  <div className="markdown-content prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={parseThinkingAndSteps(m.content)} />
                                ) : (
-                                  <p className="whitespace-pre-wrap">{m.content}</p>
-                               )}
+                                  (m.content || m.attachments) && <p className="whitespace-pre-wrap font-medium">{m.content}</p>
+                                )}
+
+                               {/* HOVER COPY BUTTON: Gemini aesthetics */}
+                               <div className={cn(
+                                  "absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1.5 p-1 rounded-lg backdrop-blur-sm shadow-sm",
+                                  m.role === "user" ? "bg-black/20 text-white/90" : "bg-gray-100/90 dark:bg-gray-800/90 text-gray-500 dark:text-gray-400"
+                               )}>
+                                  <button
+                                     type="button"
+                                     onClick={() => handleCopyMessage(m.id, m.content)}
+                                     className="p-1 hover:scale-110 active:scale-90 transition-transform cursor-pointer"
+                                     title="মেসেজ কপি করুন"
+                                  >
+                                     {copiedMessageId === m.id ? (
+                                        <Check className="w-3.5 h-3.5 text-green-400" />
+                                     ) : (
+                                        <Copy className="w-3.5 h-3.5" />
+                                     )}
+                                  </button>
+                               </div>
                            </div>
-                           <div className="flex items-center gap-1.5 px-1.5 text-[9px] select-none text-gray-400 dark:text-gray-500 font-bold">
+                           
+                           {/* Message timestamp and read indicators */}
+                           <div className="flex items-center gap-1.5 px-1 pb-1 text-[10px] select-none text-gray-400 dark:text-gray-500 font-bold">
                               <span>
                                  {m.timestamp instanceof Date && !isNaN(m.timestamp.getTime()) 
                                     ? m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
@@ -983,6 +1332,23 @@ export default function App() {
                               )}
                            </div>
                         </div>
+
+                        {/* RIGHT SIDE: User Profile Picture */}
+                        {m.role === "user" && (
+                           <motion.div 
+                             className="w-[38px] h-[38px] sm:w-[42px] sm:h-[42px] rounded-full border overflow-hidden flex items-center justify-center p-0.5 bg-gray-50 dark:bg-gray-900 shadow-md shrink-0 self-start transition-all"
+                             style={{ borderColor: MODE_THEMES[mode].accent }}
+                             whileHover={{ scale: 1.05 }}
+                           >
+                              {userProfilePic ? (
+                                 <img src={userProfilePic} alt="User" className="w-full h-full rounded-full object-cover" />
+                              ) : (
+                                 <div className="w-full h-full rounded-full flex items-center justify-center bg-gradient-to-tr from-gray-150 to-gray-200 dark:from-gray-800 dark:to-gray-750 text-gray-600 dark:text-gray-300 font-black text-sm">
+                                    {userName ? userName.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
+                                 </div>
+                              )}
+                           </motion.div>
+                        )}
                      </div>
                   );
                })}
@@ -994,7 +1360,7 @@ export default function App() {
 
                {/* CSS typing indicator during generation */}
                {isGenerating && activeChat.messages[activeChat.messages.length - 1]?.role === "assistant" && activeChat.messages[activeChat.messages.length - 1]?.content !== "" && (
-                  <div className="flex w-full justify-start mt-1">
+                  <div className="flex w-full justify-start mt-1 pl-12">
                      <TypingIndicator theme={theme} />
                   </div>
                )}
@@ -1005,7 +1371,7 @@ export default function App() {
       {/* Floating Bottom Input Form (Only visible when activeChat has messages) */}
       {(activeChat && activeChat.messages.length > 0) && (
          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#f5f6fa]/95 via-[#f5f6fa]/70 to-transparent dark:from-[#0b0f19] dark:via-[#0b0f19]/70 dark:to-transparent z-20 pointer-events-none">
-            <div className="w-full pointer-events-auto">
+            <div className="w-full max-w-3xl mx-auto pointer-events-auto">
                {renderInputForm(false)}
             </div>
          </div>
@@ -1537,6 +1903,40 @@ export default function App() {
         }
         `}
       </style>
+
+      {/* Full-Screen Image Lightbox View Overlay */}
+      <AnimatePresence>
+         {selectedLightboxImage && (
+            <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               className="fixed inset-0 bg-black/85 backdrop-blur-md z-[100] flex items-center justify-center p-4 cursor-zoom-out"
+               onClick={() => setSelectedLightboxImage(null)}
+            >
+               <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  transition={{ type: "spring", damping: 25, stiffness: 350 }}
+                  className="relative max-w-full max-h-[85vh] rounded-2xl overflow-hidden shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+               >
+                  <img 
+                     src={selectedLightboxImage} 
+                     alt="Lightbox" 
+                     className="max-w-full max-h-[80vh] object-contain rounded-xl select-none" 
+                  />
+                  <button
+                     onClick={() => setSelectedLightboxImage(null)}
+                     className="absolute top-3 right-3 p-2 bg-black/60 hover:bg-black/95 rounded-full text-white cursor-pointer transition-colors"
+                  >
+                     <X className="w-5 h-5" />
+                  </button>
+               </motion.div>
+            </motion.div>
+         )}
+      </AnimatePresence>
       </div>
     </div>
   );

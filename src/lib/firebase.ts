@@ -1,13 +1,21 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { initializeFirestore, doc, getDocFromServer } from 'firebase/firestore';
-// @ts-ignore
-import firebaseConfig from '../../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
+const customFirebaseConfig = {
+  apiKey: "AIzaSyAfZzyTSRZZrDhg4jjVbv4SrGfmDkDf_Yg",
+  authDomain: "humaira-ai.firebaseapp.com",
+  databaseURL: "https://humaira-ai-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "humaira-ai",
+  storageBucket: "humaira-ai.firebasestorage.app",
+  messagingSenderId: "654110535401",
+  appId: "1:654110535401:web:8ac7555a01a0a8ad2dca78"
+};
+
+const app = initializeApp(customFirebaseConfig);
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
-}, firebaseConfig.firestoreDatabaseId); 
+}); 
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
