@@ -40,12 +40,15 @@ service cloud.firestore {
         (!('role' in data) || data.role in ['user', 'admin']) &&
         (!('name' in data) || (data.name is string && data.name.size() <= 100)) &&
         (!('email' in data) || (data.email is string && data.email.size() <= 200)) &&
-        (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 500)) &&
+        (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1000)) &&
         (!('loveLanguage' in data) || (data.loveLanguage is string && data.loveLanguage.size() <= 100)) &&
         (!('anniversaryDate' in data) || (data.anniversaryDate is string && data.anniversaryDate.size() <= 30)) &&
         (!('xp' in data) || data.xp is number) &&
         (!('streak' in data) || data.streak is number) &&
-        (!('lastLoginDate' in data) || (data.lastLoginDate is string && data.lastLoginDate.size() <= 30));
+        (!('lastLoginDate' in data) || (data.lastLoginDate is string && data.lastLoginDate.size() <= 30)) &&
+        (!('aiAvatarSeed' in data) || (data.aiAvatarSeed is string && data.aiAvatarSeed.size() <= 100)) &&
+        (!('botName' in data) || (data.botName is string && data.botName.size() <= 100)) &&
+        (!('completedOnboarding' in data) || data.completedOnboarding is bool);
     }
 
     function isValidChat(data) {
@@ -84,7 +87,7 @@ service cloud.firestore {
         (
           userId == request.auth.uid && 
           isValidUser(incoming()) && 
-          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'photoURL', 'loveLanguage', 'anniversaryDate', 'xp', 'streak', 'lastLoginDate']) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'photoURL', 'loveLanguage', 'anniversaryDate', 'xp', 'streak', 'lastLoginDate', 'aiAvatarSeed', 'botName', 'completedOnboarding']) &&
           incoming().role == existing().role
         )
       );

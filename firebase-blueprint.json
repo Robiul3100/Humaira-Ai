@@ -52,7 +52,10 @@
         "anniversaryDate": { "type": "string" },
         "xp": { "type": "number" },
         "streak": { "type": "number" },
-        "lastLoginDate": { "type": "string" }
+        "lastLoginDate": { "type": "string" },
+        "aiAvatarSeed": { "type": "string" },
+        "botName": { "type": "string" },
+        "completedOnboarding": { "type": "boolean" }
       },
       "required": ["role"]
     },

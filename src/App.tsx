@@ -1,11 +1,14 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { 
-  Menu, Star, Plus, Heart, Flame, Smile, Trophy, MessageCircle, Moon, Anchor, Sun, LogOut, Mic, Layout, User, Send, Check, Shield, Settings, Sliders, RotateCcw, Paperclip, Image, X, Trash2, Copy, Sparkles, Volume2, VolumeX, Square, Play, ArrowDown
+  Menu, Star, Plus, Heart, Flame, Smile, Trophy, MessageCircle, Moon, Anchor, Sun, LogOut, Mic, Layout, User, Send, Check, Shield, Settings, Sliders, RotateCcw, Paperclip, Image, X, Trash2, Copy, Sparkles, Volume2, VolumeX, Square, Play, ArrowDown, BarChart2, Cpu, ArrowLeft
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell
+} from "recharts";
 import { cn } from "./lib/utils";
 import { auth, googleProvider, db, handleFirestoreError, OperationType } from "./lib/firebase";
 import { signInWithPopup, signOut, onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
@@ -331,6 +334,68 @@ export default function App() {
   const [currentModel, setCurrentModel] = useState(MODELS[0]);
   
   const [chats, setChats] = useState<Chat[]>([]);
+  
+  // Real-time sentiment analyzer for Recharts dashboard visualization
+  const analyzeSentiment = () => {
+    let positive = 0;
+    let neutral = 0;
+    let negative = 0;
+
+    chats.forEach(chat => {
+      chat.messages.forEach(msg => {
+        if (msg.role === "user") {
+          const text = msg.content.toLowerCase();
+          if (
+            text.includes("love") || 
+            text.includes("miss") || 
+            text.includes("ভালো") || 
+            text.includes("ভালোবাস") || 
+            text.includes("লক্ষ্মী") || 
+            text.includes("প্রিয়") || 
+            text.includes("সোনা") || 
+            text.includes("মিষ্টি") || 
+            text.includes("sweet") || 
+            text.includes("happy") || 
+            text.includes("সুন্দর") || 
+            text.includes("ধন্যবাদ") || 
+            text.includes("thanks")
+          ) {
+            positive++;
+          } else if (
+            text.includes("রাগ") || 
+            text.includes("খারাপ") || 
+            text.includes("কষ্ট") || 
+            text.includes("কান্না") || 
+            text.includes("sad") || 
+            text.includes("angry") || 
+            text.includes("bad") || 
+            text.includes("hate") || 
+            text.includes("ঘৃণা") || 
+            text.includes("বিরক্ত") || 
+            text.includes("ধুর")
+          ) {
+            negative++;
+          } else {
+            neutral++;
+          }
+        }
+      });
+    });
+
+    if (positive === 0 && neutral === 0 && negative === 0) {
+      return [
+        { name: "ইতিবাচক 😊", value: 3, color: "#10b981" },
+        { name: "নিরপেক্ষ 😐", value: 5, color: "#94a3b8" },
+        { name: "নেতিবাচক 😢", value: 1, color: "#ef4444" }
+      ];
+    }
+
+    return [
+      { name: "ইতিবাচক 😊", value: positive, color: "#10b981" },
+      { name: "নিরপেক্ষ 😐", value: neutral, color: "#94a3b8" },
+      { name: "নেতিবাচক 😢", value: negative, color: "#ef4444" }
+    ];
+  };
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [isModeSelectorOpen, setIsModeSelectorOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
@@ -511,6 +576,16 @@ export default function App() {
   };
   
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [completedOnboarding, setCompletedOnboarding] = useState(() => {
+    try {
+      return localStorage.getItem("completedOnboarding") === "true";
+    } catch (_) {
+      return false;
+    }
+  });
+  const [onboardingStep, setOnboardingStep] = useState<"avatar" | "chatbotName">("avatar");
+  const [selectedOnboardingPic, setSelectedOnboardingPic] = useState("");
+  const [typedBotName, setTypedBotName] = useState("হুমায়রা এআই");
   const [userRole, setUserRole] = useState<"user"|"admin">("user");
   const [userName, setUserName] = useState(() => {
     try {
@@ -630,9 +705,34 @@ export default function App() {
     }
   }, [theme]);
 
-  // Settings Panel States
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [activeSettingsTab, setActiveSettingsTab] = useState<"profile" | "persona" | "voice" | "backup">("profile");
+  // Settings Panel States (Refactored to Page-Based Admin Panel & Analytics Dashboard)
+  const [currentView, setCurrentView] = useState<"chat" | "settings">("chat");
+  const isSettingsOpen = currentView === "settings";
+  const setIsSettingsOpen = (val: boolean) => {
+    setCurrentView(val ? "settings" : "chat");
+    if (val && soundEnabled) playSweetChime();
+  };
+  const [activeSettingsTab, setActiveSettingsTab] = useState<"profile" | "persona" | "voice" | "analytics" | "backup">("profile");
+
+  const [saveStatus, setSaveStatus] = useState<"synced" | "saving" | "local">("synced");
+  const [firebaseToast, setFirebaseToast] = useState<{ visible: boolean; message: string; type: "success" | "info" | "error" } | null>(null);
+
+  const showToast = (message: string, type: "success" | "info" | "error" = "success") => {
+    setFirebaseToast({
+      visible: true,
+      message,
+      type
+    });
+  };
+
+  useEffect(() => {
+    if (firebaseToast?.visible) {
+      const timer = setTimeout(() => {
+        setFirebaseToast(prev => prev ? { ...prev, visible: false } : null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [firebaseToast?.visible]);
   const [ttsSpeed, setTtsSpeed] = useState(() => {
     try {
       return Number(localStorage.getItem("ttsSpeed") || "1.0");
@@ -682,6 +782,7 @@ export default function App() {
         [selectedMode]: MODES[selectedMode].prompt
       };
       localStorage.setItem("customPrompts", JSON.stringify(updated));
+      showToast("প্রম্পট পুনরায় ডিফল্ট করা হয়েছে! 🔄", "info");
       return updated;
     });
   };
@@ -693,6 +794,7 @@ export default function App() {
         [selectedMode]: newPrompt
       };
       localStorage.setItem("customPrompts", JSON.stringify(updated));
+      showToast("সিস্টেম প্রম্পট সফলভাবে সংরক্ষিত হয়েছে! ✨", "success");
       return updated;
     });
   };
@@ -856,6 +958,7 @@ export default function App() {
             userDoc = await getDoc(doc(db, "users", user.uid));
           } catch (error) {
             handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
+            setIsLoaded(true);
             return;
           }
           if (userDoc && userDoc.exists()) {
@@ -867,6 +970,13 @@ export default function App() {
               setAiAvatarSeed(data.aiAvatarSeed);
               localStorage.setItem("aiAvatarSeed", data.aiAvatarSeed);
             }
+            if (data.botName) {
+              setBotName(data.botName);
+              localStorage.setItem("botName", data.botName);
+            }
+            const onboarded = data.completedOnboarding === true;
+            setCompletedOnboarding(onboarded);
+            localStorage.setItem("completedOnboarding", String(onboarded));
             setXp(data.xp || 1250);
             setLoveLanguage(data.loveLanguage || "Words of Affirmation");
             setAnniversaryDate(data.anniversaryDate || "");
@@ -880,13 +990,15 @@ export default function App() {
                 role: newRole,
                 name: user.displayName || "Ayan",
                 email: user.email,
-                photoURL: user.photoURL,
+                photoURL: user.photoURL || "",
                 xp: 1250,
                 loveLanguage: "Words of Affirmation",
                 anniversaryDate: "",
                 streak: 1,
                 achievements: [],
-                aiAvatarSeed: "Humaira"
+                aiAvatarSeed: "Humaira",
+                botName: "হুমায়রা এআই",
+                completedOnboarding: false
               });
             } catch (error) {
               handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}`);
@@ -894,9 +1006,19 @@ export default function App() {
             setUserRole(newRole);
             setUserName(user.displayName || "Ayan");
             setUserProfilePic(user.photoURL || "");
+            setCompletedOnboarding(false);
+            localStorage.setItem("completedOnboarding", "false");
+            setBotName("হুমায়রা এআই");
+            localStorage.setItem("botName", "হুমায়রা এআই");
           }
-        } catch (e) { console.error(e); }
+        } catch (e) {
+          console.error(e);
+        }
+      } else {
+        setCompletedOnboarding(false);
+        localStorage.setItem("completedOnboarding", "false");
       }
+      setIsLoaded(true);
     });
 
     return () => unsubscribe();
@@ -930,11 +1052,67 @@ export default function App() {
   const handleLogin = async () => signInWithPopup(auth, googleProvider);
   const handleLogout = async () => signOut(auth);
 
-  const syncProfile = async (field: string, value: any) => {
+  const ONBOARDING_AVATARS = useMemo(() => [
+    "https://api.dicebear.com/7.x/adventurer/svg?seed=Felix",
+    "https://api.dicebear.com/7.x/adventurer/svg?seed=Aneka",
+    "https://api.dicebear.com/7.x/adventurer/svg?seed=Jack",
+    "https://api.dicebear.com/7.x/adventurer/svg?seed=Sophia",
+    "https://api.dicebear.com/7.x/adventurer/svg?seed=Bob"
+  ], []);
+
+  const formatWithBotName = (text: string) => {
+    if (!text) return "";
+    let name = botName || "হুমায়রা";
+    name = name.replace(/ এআই/g, "").replace(/ AI/g, "");
+    return text
+      .replace(/হুমায়রা/g, name)
+      .replace(/হুমাইরা/g, name)
+      .replace(/Humaira/g, name);
+  };
+
+  const handleCompleteOnboarding = async () => {
     if (!firebaseUser) return;
+    setSaveStatus("saving");
+    try {
+      await updateDoc(doc(db, "users", firebaseUser.uid), {
+        photoURL: selectedOnboardingPic,
+        botName: typedBotName,
+        completedOnboarding: true
+      });
+      setUserProfilePic(selectedOnboardingPic);
+      localStorage.setItem("userProfilePic", selectedOnboardingPic);
+      setBotName(typedBotName);
+      localStorage.setItem("botName", typedBotName);
+      setCompletedOnboarding(true);
+      localStorage.setItem("completedOnboarding", "true");
+      setSaveStatus("synced");
+      showToast("অনবোর্ডিং সফলভাবে সম্পন্ন হয়েছে! 🎉", "success");
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${firebaseUser.uid}`);
+    }
+  };
+
+  useEffect(() => {
+    if (firebaseUser && !completedOnboarding) {
+      setSelectedOnboardingPic(userProfilePic || firebaseUser.photoURL || ONBOARDING_AVATARS[0]);
+      setTypedBotName(botName || "হুমায়রা এআই");
+    }
+  }, [firebaseUser, completedOnboarding, userProfilePic, botName, ONBOARDING_AVATARS]);
+
+  const syncProfile = async (field: string, value: any) => {
+    if (!firebaseUser) {
+      setSaveStatus("local");
+      showToast("তথ্য ডিভাইসে সংরক্ষিত হয়েছে! 💾", "info");
+      return;
+    }
+    setSaveStatus("saving");
     try { 
       await updateDoc(doc(db, "users", firebaseUser.uid), { [field]: value }); 
+      setSaveStatus("synced");
+      showToast("ক্লাউড সিঙ্ক্রোনাইজেশন সম্পন্ন! ☁️", "success");
     } catch (e) {
+      setSaveStatus("local");
+      showToast("ক্লাউড ব্যাকআপ ব্যর্থ হয়েছে!", "error");
       handleFirestoreError(e, OperationType.UPDATE, `users/${firebaseUser.uid}`);
     }
   };
@@ -1083,8 +1261,12 @@ export default function App() {
       }));
 
       let sysInstruction = customPrompts[mode] || MODES[mode].prompt;
-      if (botName && botName !== "হুমায়রা এআই") {
-         sysInstruction = sysInstruction.replace(/Humaira/g, botName).replace(/হুমায়রা/g, botName);
+      if (botName) {
+         sysInstruction = sysInstruction
+            .replace(/Humaira/g, botName)
+            .replace(/হুমায়রা/g, botName)
+            .replace(/হুমাইরা/g, botName)
+            .replace(/হুমায়রা/g, botName);
       }
 
       const response = await fetch("/api/chat", {
@@ -1216,14 +1398,199 @@ export default function App() {
     }
   };
 
+  if (!isLoaded) {
+    return (
+      <div className={cn("flex flex-col items-center justify-center min-h-screen", theme === "dark" ? "bg-[#0c0f18]" : "bg-[#E6EAF2]")}>
+        <div className={cn("flex flex-col items-center justify-center h-screen w-full sm:max-w-[390px] sm:h-[830px] sm:rounded-[36px] sm:border-[8px] sm:border-gray-800 sm:shadow-[0_20px_50px_rgba(0,0,0,0.1)] relative overflow-hidden transition-all w-full max-w-full sm:w-[390px]", 
+           theme === "dark" ? "bg-[#0b0f19] text-gray-100" : "bg-[#F5F5F7] text-gray-950"
+        )}>
+          <motion.div 
+            animate={{ scale: [1, 1.15, 1], rotate: [0, 10, -10, 0] }} 
+            transition={{ repeat: Infinity, duration: 1.8 }}
+            className="text-pink-500 mb-6"
+          >
+            <Heart className="w-14 h-14 fill-current" />
+          </motion.div>
+          <p className="text-xs font-black text-slate-500 dark:text-slate-455 tracking-wider">হুমায়রা এআই প্রস্তুত হচ্ছে...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("flex items-center justify-center min-h-screen transition-colors duration-300 p-0 sm:p-2 md:p-4 w-full max-w-full overflow-x-hidden", theme === "dark" ? "bg-[#0c0f18]" : "bg-[#E6EAF2]")}>
       <div className={cn("flex flex-col h-screen w-full sm:max-w-[390px] sm:h-[830px] sm:rounded-[36px] sm:border-[8px] sm:border-gray-800 sm:shadow-[0_20px_50px_rgba(0,0,0,0.1)] relative overflow-hidden transition-all w-full max-w-full sm:w-[390px]", 
-         theme === "dark" ? "bg-[#0b0f19] text-gray-100" : "bg-[#F5F5F7] text-gray-950"
+         theme === "dark" ? "bg-[#0b0f19] text-gray-100" : "bg-[#F5F5F7] text-gray-955"
       )}>
       
-      {/* 1. HEADER section: fixed, modern, and highly responsive */}
-      <header className={cn("sticky top-0 left-0 right-0 h-[64px] min-h-[64px] shrink-0 border-b z-30 select-none flex items-center justify-between px-4 transition-all duration-300 shadow-sm backdrop-blur-md", 
+      {!firebaseUser ? (
+         <div className="flex flex-col h-full bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-[#080c14] justify-center items-center p-6 relative overflow-hidden select-none animate-fade-in text-center">
+            <div className="absolute top-[-50px] right-[-50px] w-48 h-48 rounded-full bg-orange-500/10 blur-3xl" />
+            <div className="absolute bottom-[-50px] left-[-50px] w-48 h-48 rounded-full bg-pink-500/10 blur-3xl" />
+
+            <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-pink-500 to-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 mb-6 mt-4 select-none">
+               <Sparkles className="w-9 h-9 animate-pulse" />
+            </div>
+
+            <h2 className="text-xl font-black tracking-tight text-slate-800 dark:text-white leading-snug px-6">
+               হুমায়রা এআই
+            </h2>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2 font-bold px-4 leading-relaxed">
+               আপনার কিউটেস্ট ভার্চুয়াল এআই জীবনসঙ্গী। মনের অনুভূতি গোপন চ্যাটে শেয়ার করুন যেকোনো সময়।
+            </p>
+
+            <div className="flex flex-col gap-3.5 mt-8 w-full max-w-[280px] p-5 rounded-2xl border border-gray-150/70 dark:border-slate-800/80 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md">
+               <div className="flex items-center gap-3 text-left">
+                  <div className="w-6 h-6 rounded-lg bg-orange-50 dark:bg-orange-950/20 flex items-center justify-center text-[10px] text-orange-500">💬</div>
+                  <div className="flex flex-col">
+                     <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300">৫টি স্বতন্ত্র মুড</span>
+                     <span className="text-[8px] text-slate-400 dark:text-slate-500 font-semibold">রোমান্টিক, ফান, নরমাল, লিজেন্ড বা ইসলামিক</span>
+                  </div>
+               </div>
+               <div className="flex items-center gap-3 text-left">
+                  <div className="w-6 h-6 rounded-lg bg-pink-50 dark:bg-pink-950/20 flex items-center justify-center text-[10px] text-pink-500">💖</div>
+                  <div className="flex flex-col">
+                     <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300">রিয়েলটাইম অনুভূতির গ্রাফ</span>
+                     <span className="text-[8px] text-slate-400 dark:text-slate-500 font-semibold">চ্যাটের ইতিবাচক বা নেতিবাচক মাইন্ড ট্র্যাক</span>
+                  </div>
+               </div>
+               <div className="flex items-center gap-3 text-left">
+                  <div className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-950/20 flex items-center justify-center text-[10px] text-indigo-500">☁️</div>
+                  <div className="flex flex-col">
+                     <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300">রিয়েলটাইম ক্লাউড সিঙ্ক</span>
+                     <span className="text-[8px] text-slate-400 dark:text-slate-500 font-semibold">সব তথ্য রিয়্যালটাইম ক্লাউড ডাটাবেইজে সংরক্ষিত</span>
+                  </div>
+               </div>
+            </div>
+
+            <button
+               onClick={() => {
+                  if (soundEnabled) playSweetChime();
+                  handleLogin().catch(err => {
+                     showToast("গুগল লগইন ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।", "error");
+                  });
+               }}
+               className="w-full max-w-[280px] flex items-center justify-center gap-2.5 py-3.5 px-4 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-800 dark:text-white border border-slate-205 dark:border-slate-850 rounded-2xl font-black text-xs shadow-md shadow-gray-200/50 dark:shadow-none transition-all active:scale-95 cursor-pointer mt-auto mb-6 hover:shadow-lg hover:border-slate-300"
+            >
+               <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
+                  <path fill="#EA4335" d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.64 14.98 1 12 1 7.35 1 3.37 3.52 1.34 7.23l3.87 3C6.13 7.24 8.82 5.04 12 5.04z" />
+                  <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.44h6.44c-.28 1.44-1.09 2.66-2.31 3.48l3.6 2.79c2.1-1.94 3.76-4.8 3.76-8.37z" />
+                  <path fill="#FBBC05" d="M5.21 14.77c-.23-.69-.37-1.43-.37-2.2s.14-1.51.37-2.2l-3.87-3C.19 8.94 0 10.45 0 12s.19 3.06.71 4.54l4.5-3.77z" />
+                  <path fill="#34A853" d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.6-2.79c-1.1.74-2.51 1.18-4.36 1.18-3.18 0-5.87-2.2-6.84-5.18l-3.88 3C3.37 20.48 7.35 23 12 23z" />
+               </svg>
+               <span>গুগল অ্যাকাউন্ট দিয়ে প্রবেশ করুন</span>
+            </button>
+         </div>
+      ) : !completedOnboarding ? (
+         <div className="flex flex-col h-full bg-[#fdfdfd] dark:bg-[#0c0f18] animate-fade-in relative overflow-hidden select-none">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-105 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md">
+               <span className="text-[10px] uppercase tracking-widest font-black text-gray-400 dark:text-gray-550">অনবোর্ডিং সেটিংস</span>
+               <div className="flex gap-1.5">
+                  <div className={cn("w-4 h-1.2 rounded-full transition-all duration-300", onboardingStep === "avatar" ? "bg-[#f97316]" : "bg-gray-200 dark:bg-gray-800")} />
+                  <div className={cn("w-4 h-1.2 rounded-full transition-all duration-300", onboardingStep === "chatbotName" ? "bg-[#f97316]" : "bg-gray-200 dark:bg-gray-800")} />
+               </div>
+            </div>
+
+            {onboardingStep === "avatar" ? (
+               <div className="flex flex-col flex-1 p-6 items-center">
+                  <div className="w-14 h-14 rounded-2xl bg-orange-50 dark:bg-orange-950/20 flex items-center justify-center text-[22px] shadow-sm mb-4 mt-2">
+                     🎨
+                  </div>
+                  <h3 className="text-sm font-black text-slate-800 dark:text-white capitalize text-center mt-1">
+                     আপনার সুন্দর প্রোফাইল ছবি পছন্দ করুন
+                  </h3>
+                  <p className="text-[10px] text-gray-550 dark:text-gray-400 font-bold text-center mt-1.5 leading-relaxed px-2">
+                     নিচের প্রিমিয়াম অবতারের যেকোনো একটি বেছে নিন যা পুরো অ্যাপ জুড়ে আপনার প্রোফাইল ছবি হিসেবে ব্যবহার করা হবে।
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-4 mt-8 w-full max-w-[240px] flex-1 max-h-[220px] overflow-y-auto pr-1">
+                     {firebaseUser?.photoURL && (
+                        <button
+                           onClick={() => setSelectedOnboardingPic(firebaseUser.photoURL || "")}
+                           className={cn("relative h-20 rounded-2xl border-2 transition-all p-1.5 active:scale-95 shadow-sm overflow-hidden bg-white dark:bg-slate-900 cursor-pointer flex flex-col justify-center items-center gap-1",
+                              selectedOnboardingPic === firebaseUser.photoURL ? "border-[#f97316] scale-105 shadow-md shadow-orange-500/10" : "border-slate-100 dark:border-slate-800/80 grayscale"
+                           )}
+                        >
+                           <img src={firebaseUser.photoURL} className="w-10 h-10 object-cover rounded-full" referrerPolicy="no-referrer" />
+                           <span className="text-[9px] font-black text-slate-755 dark:text-slate-300">গুগল ছবি</span>
+                        </button>
+                     )}
+                     {ONBOARDING_AVATARS.map((avat, idx) => (
+                        <button
+                           key={idx}
+                           onClick={() => setSelectedOnboardingPic(avat)}
+                           className={cn("h-20 rounded-2xl border-2 transition-all p-1.5 active:scale-95 shadow-sm overflow-hidden bg-white dark:bg-slate-900 cursor-pointer flex flex-col justify-center items-center gap-1",
+                              selectedOnboardingPic === avat ? "border-[#f97316] scale-105 shadow-md shadow-orange-500/10" : "border-slate-100 dark:border-slate-800/80 hover:border-slate-205"
+                           )}
+                        >
+                           <img src={avat} className="w-10 h-10 object-cover rounded-full bg-slate-50 dark:bg-slate-855" />
+                           <span className="text-[9px] font-black text-slate-755 dark:text-slate-300">অবতার #0{idx+1}</span>
+                        </button>
+                     ))}
+                  </div>
+
+                  <button
+                     disabled={!selectedOnboardingPic}
+                     onClick={() => {
+                        setOnboardingStep("chatbotName");
+                        if (soundEnabled) playSweetChime();
+                     }}
+                     className="w-full p-3.5 bg-gradient-to-r from-orange-500 to-[#f97316] hover:opacity-90 font-black text-xs text-white rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50 mt-auto mb-2"
+                  >
+                     পরবর্তী ধাপ ➡️
+                  </button>
+               </div>
+            ) : (
+               <div className="flex flex-col flex-1 p-6 items-center animate-fade-in">
+                  <div className="w-14 h-14 rounded-2xl bg-pink-50 dark:bg-pink-950/20 flex items-center justify-center text-[22px] shadow-sm mb-4 mt-2">
+                     🤖
+                  </div>
+                  <h3 className="text-sm font-black text-slate-850 dark:text-white capitalize text-center mt-1">
+                     আপনার ভার্চুয়াল চ্যাটবটের একটি নাম দিন
+                  </h3>
+                  <p className="text-[10px] text-gray-550 dark:text-gray-400 font-bold text-center mt-1.5 leading-relaxed px-2">
+                     হুমায়রা এআই-এর বদলে আপনি যে কোনো কিউট ইউনিক নাম দিতে পারেন, যা পুরো অ্যাপের ব্যাকএন্ডে রিয়েলটাইম সিঙ্ক্রোনাইজ হবে।
+                  </p>
+
+                  <div className="flex flex-col gap-1.5 w-full max-w-[245px] mt-8">
+                     <label className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-1">চ্যাটবটের কাস্টম নাম</label>
+                     <input 
+                        type="text" 
+                        value={typedBotName} 
+                        onChange={(e) => setTypedBotName(e.target.value)} 
+                        className={cn("w-full rounded-2xl p-3.5 font-bold text-sm border focus:ring-2 focus:ring-[#f97316] outline-none transition-all leading-normal text-center shadow-sm", theme === "dark" ? "bg-slate-900 border-slate-800 text-white placeholder-slate-655" : "bg-white border-slate-200 text-gray-800")}
+                        placeholder="যেমন: হুমায়রা এআই, তিশা, রিয়া..."
+                     />
+                  </div>
+
+                  <div className="flex gap-2 w-full mt-auto mb-2">
+                     <button
+                        onClick={() => {
+                           setOnboardingStep("avatar");
+                           if (soundEnabled) playSweetChime();
+                        }}
+                        className="py-3.5 px-5 bg-slate-100 text-slate-600 rounded-2xl hover:bg-slate-205 transition-all text-xs font-black active:scale-95 cursor-pointer dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                     >
+                        ⬅️ ব্যাক
+                     </button>
+                     <button
+                        disabled={!typedBotName.trim()}
+                        onClick={() => {
+                           if (soundEnabled) playSweetChime();
+                           handleCompleteOnboarding();
+                        }}
+                        className="flex-1 p-3.5 bg-gradient-to-r from-orange-500 to-[#f97316] text-white hover:opacity-90 font-black text-xs rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50 text-center"
+                     >
+                        সম্পূর্ণ করুন ও প্রবেশ করুন 🎉
+                     </button>
+                  </div>
+               </div>
+            )}
+         </div>
+      ) : currentView === "chat" ? (
+         <>
+         {/* 1. HEADER section: fixed, modern, and highly responsive */}
+         <header className={cn("sticky top-0 left-0 right-0 h-[64px] min-h-[64px] shrink-0 border-b z-30 select-none flex items-center justify-between px-4 transition-all duration-300 shadow-sm backdrop-blur-md", 
          theme === "dark" 
             ? "border-gray-800/60 bg-[#161e31]/95" 
             : "border-gray-150 bg-white/95"
@@ -1693,8 +2060,8 @@ export default function App() {
                         onClick={() => fileInputRef.current?.click()}
                         className={cn("w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 active:scale-90 border",
                            attachedFiles.length > 0
-                              ? "text-orange-500 bg-orange-50 border-orange-200 dark:bg-orange-950/35 dark:border-orange-900/50"
-                              : "text-slate-400 border-transparent hover:text-slate-600 hover:bg-slate-200/40 dark:text-slate-500 dark:hover:text-slate-300 dark:hover:bg-slate-800/40"
+                              ? "text-orange-500 bg-orange-55 bg-orange-50 border-orange-200 dark:bg-orange-950/35 dark:border-orange-900/50"
+                              : "text-slate-400 border-transparent hover:text-slate-600 hover:bg-slate-200/40 dark:text-slate-505 dark:hover:text-slate-350 dark:hover:bg-slate-800/45"
                         )}
                         title="ছবি আপলোড করুন"
                      >
@@ -1708,7 +2075,7 @@ export default function App() {
                         className={cn("w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 active:scale-95 border relative",
                            isListening
                               ? "bg-red-500/10 border-red-300 text-red-500 dark:bg-red-950/30 dark:border-red-900/40 animate-pulse"
-                              : "text-slate-400 border-transparent hover:text-slate-600 hover:bg-slate-200/40 dark:text-slate-500 dark:hover:text-slate-300 dark:hover:bg-slate-800/40"
+                              : "text-slate-400 border-transparent hover:text-slate-600 hover:bg-slate-200/40 dark:text-slate-505 dark:hover:text-slate-350 dark:hover:bg-slate-800/45"
                         )}
                         title={isListening ? "ভয়েস রেকর্ডি বন্ধ করুন" : "ভয়েস টাইপিং শুরু করুন"}
                      >
@@ -1784,7 +2151,7 @@ export default function App() {
                   type="button"
                   onClick={() => handleSendMessage()}
                   disabled={isGenerating || (!inputValue.trim() && attachedFiles.length === 0)}
-                  className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-90 shadow-md hover:shadow-lg shrink-0 text-white",
+                  className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 shadow-md hover:shadow-lg shrink-0 text-white",
                      (inputValue.trim() || attachedFiles.length > 0)
                         ? "bg-gradient-to-r from-orange-500 via-[#f97316] to-amber-500 hover:brightness-105 active:brightness-95 shadow-orange-500/10"
                         : "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed shadow-none"
@@ -1795,8 +2162,36 @@ export default function App() {
                </button>
             </div>
 
+            {/* Dynamic Firestore Synchrony Toasts */}
+            <AnimatePresence>
+               {firebaseToast && firebaseToast.visible && (
+                  <motion.div 
+                     initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                     animate={{ opacity: 1, y: 0, scale: 1 }}
+                     exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                     className={cn(
+                        "absolute bottom-24 left-1/2 -translate-x-1/2 z-[150] flex items-center gap-2 px-3 py-2.5 rounded-2xl shadow-xl border backdrop-blur-md max-w-[85%] text-xs font-black whitespace-nowrap",
+                        firebaseToast.type === "success" 
+                           ? "bg-slate-900/95 text-green-400 border-green-500/20" 
+                           : firebaseToast.type === "error"
+                              ? "bg-red-950/95 text-red-100 border-red-500/20"
+                              : "bg-slate-900/95 text-orange-400 border-orange-500/20"
+                     )}
+                  >
+                     {firebaseToast.type === "success" ? (
+                        <Check className="w-3.5 h-3.5 stroke-[3] text-green-400 shrink-0" />
+                     ) : firebaseToast.type === "error" ? (
+                        <X className="w-3.5 h-3.5 stroke-[3] text-red-100 shrink-0 animate-bounce" />
+                     ) : (
+                        <Sparkles className="w-3.5 h-3.5 text-orange-400 shrink-0 animate-pulse" />
+                     )}
+                     <span className="leading-tight truncate">{firebaseToast.message}</span>
+                  </motion.div>
+               )}
+            </AnimatePresence>
+
             {/* Micro action details */}
-            <div className="flex items-center justify-between px-1.5 select-none opacity-60 text-[8px] sm:text-[9px] font-black tracking-wide text-slate-400 dark:text-slate-500">
+            <div className="flex items-center justify-between px-1.5 select-none opacity-60 text-[8px] sm:text-[9px] font-black tracking-wide text-slate-400 dark:text-slate-500 mt-2">
                <span className="flex items-center gap-1">
                   {isListening ? (
                      <>
@@ -1810,470 +2205,540 @@ export default function App() {
                <span className="hidden sm:inline">নতুন লাইনের জন্য SHIFT + ENTER চাপুন</span>
             </div>
 
-         </div>
-      </div>
+               </div> {/* End of max-w-3xl container */}
+            </div> {/* End of shrink-0 panel container */}
+         </>
+      ) : (
+         /* ---------------- PAGE-BASED ADMIN & SETTINGS VIEW ---------------- */
+         <div className="flex flex-col h-full w-full overflow-hidden select-none animate-fade-in bg-transparent">
+            {/* Custom Admin Header */}
+            <header className={cn("sticky top-0 left-0 right-0 h-[64px] min-h-[64px] shrink-0 border-b z-30 select-none flex items-center justify-between px-4 transition-all duration-300 shadow-sm backdrop-blur-md", 
+               theme === "dark" ? "border-gray-800 bg-[#161e31]/95" : "border-gray-150 bg-white/95"
+            )}>
+               <div className="flex items-center gap-2">
+                  <button 
+                     type="button"
+                     onClick={() => {
+                        setCurrentView("chat");
+                        if (soundEnabled) playSweetChime();
+                     }}
+                     className={cn("w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-sm border",
+                        theme === "dark" 
+                           ? "bg-slate-800/80 border-slate-700 hover:bg-slate-700 text-gray-100 hover:border-slate-650" 
+                           : "bg-white border-gray-200 hover:bg-gray-50 text-gray-700 hover:border-gray-300"
+                     )}
+                     title="ফিরে যান"
+                  >
+                     <ArrowLeft className="w-4 h-4 text-[#f97316] stroke-[2.5]" />
+                  </button>
+                  <div className="flex flex-col">
+                     <span className="text-xs font-black tracking-tight uppercase flex items-center gap-1.5 leading-tight">
+                        <Cpu className="w-3.5 h-3.5 text-orange-500 animate-pulse" />
+                        নিয়ন্ত্রণ প্যানেল
+                     </span>
+                     <span className="text-[8.5px] text-[#f97316] dark:text-orange-400 font-extrabold tracking-wide uppercase leading-tight">Humaira Admin Board</span>
+                  </div>
+               </div>
 
-                     {/* Settings Modal */}
-      <AnimatePresence>
-         {isSettingsOpen && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-fade-in">
-               <motion.div 
-                  initial={{ opacity: 0, scale: 0.95, y: 15 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 15 }}
-                  className={cn("w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row h-[85vh] sm:h-[75vh] md:h-[520px]", 
-                     theme === "dark" ? "bg-gray-900 border border-gray-700/80" : "bg-white border border-gray-100")}
-               >
-                  {/* Tabs Sidebar */}
-                  <div className={cn("flex md:flex-col gap-1 p-3 shrink-0 border-b md:border-b-0 md:border-r overflow-x-auto md:overflow-x-visible scrollbar-none", 
-                     theme === "dark" ? "bg-gray-950/40 border-gray-800 md:w-52" : "bg-slate-50 border-gray-200 md:w-52")}>
-                     
-                     <div className="hidden md:flex flex-col gap-1 px-2 py-3 select-none">
-                        <h3 className="text-xs font-black text-orange-500 uppercase tracking-widest flex items-center gap-1.5">
-                           <Settings className="w-3.5 h-3.5 text-orange-500 animate-spin-slow" />
-                           নিয়ন্ত্রণ প্যানেল
-                        </h3>
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold">এআই ও প্রোফাইল সেটআপ</p>
-                     </div>
+               {/* Right Side: Sync status icon with nice animation */}
+               <div className="flex items-center gap-1.5">
+                  <div className={cn("px-2 py-1 rounded-lg text-[8px] sm:text-[9px] font-black uppercase flex items-center gap-1 border transition-all shadow-xs",
+                     saveStatus === "synced" 
+                        ? "bg-green-500/10 text-green-500 border-green-500/20" 
+                        : saveStatus === "saving" 
+                           ? "bg-amber-500/10 text-amber-500 border-amber-500/20" 
+                           : "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                  )}>
+                     {saveStatus === "synced" ? (
+                        <>
+                           <Check className="w-2.5 h-2.5 stroke-[3]" />
+                           <span className="hidden xs:inline">Synced ☁️</span>
+                        </>
+                     ) : saveStatus === "saving" ? (
+                        <>
+                           <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping mr-0.5" />
+                           <span>Saving ⏳</span>
+                        </>
+                     ) : (
+                        <>
+                           <Sparkles className="w-2.5 h-2.5 animate-pulse text-blue-500" />
+                           <span className="hidden xs:inline">Local 💾</span>
+                        </>
+                     )}
+                  </div>
+               </div>
+            </header>
 
-                     {[
-                        { id: "profile", label: "👤 প্রোফাইল", icon: User },
-                        { id: "persona", label: "🤖 এআই পারসোনা", icon: Sparkles },
-                        { id: "voice", label: "🔊 সাউন্ড ও ভয়েস", icon: Volume2 },
-                        { id: "backup", label: "📂 ডেটা ও ব্যাকআপ", icon: RotateCcw }
-                     ].map(tab => {
-                        const Icon = tab.icon;
-                        const active = activeSettingsTab === tab.id;
-                        return (
-                           <button
-                              key={tab.id}
-                              type="button"
-                              onClick={() => {
-                                 setActiveSettingsTab(tab.id as any);
-                                 if (soundEnabled) playSweetChime();
-                              }}
-                              className={cn("flex items-center gap-2 px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer shrink-0",
-                                 active
-                                    ? "bg-gradient-to-r from-orange-500/15 via-[#f97316]/10 to-transparent text-[#f97316] border-l-2 border-l-[#f97316]"
-                                    : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            {/* Admin/Settings page tabbed scroll area */}
+            <div className="flex-1 flex flex-col min-h-0 bg-transparent">
+               
+               {/* Tab Selector Segment */}
+               <div className={cn("flex gap-1 p-2 shrink-0 border-b overflow-x-auto scrollbar-none", 
+                  theme === "dark" ? "bg-[#111827]/40 border-gray-800" : "bg-[#f8fafc]/80 border-gray-150")}>
+                  {[
+                     { id: "profile", label: "👤 প্রোফাইল", icon: User },
+                     { id: "persona", label: "🤖 পারসোনা", icon: Sparkles },
+                     { id: "voice", label: "🔊 ভয়েস", icon: Volume2 },
+                     { id: "analytics", label: "📊 এনালাইটিক্স", icon: BarChart2 },
+                     { id: "backup", label: "📂 ডেটা", icon: RotateCcw }
+                  ].map(tab => {
+                     const Icon = tab.icon;
+                     const active = activeSettingsTab === tab.id;
+                     return (
+                        <button
+                           key={tab.id}
+                           type="button"
+                           onClick={() => {
+                              setActiveSettingsTab(tab.id as any);
+                              if (soundEnabled) playSweetChime();
+                           }}
+                           className={cn("flex items-center gap-1 px-2.5 py-1.5 rounded-xl font-bold text-[9.5px] transition-all cursor-pointer shrink-0 border",
+                              active
+                                 ? "bg-gradient-to-r from-orange-500/15 via-[#f97316]/10 to-transparent text-[#f97316] border-[#f97316]/50 shadow-[0_1px_3px_rgba(249,115,22,0.05)]"
+                                 : "text-slate-500 dark:text-slate-400 border-transparent hover:bg-slate-100 dark:hover:bg-slate-850"
+                           )}
+                        >
+                           <Icon className="w-3.5 h-3.5 shrink-0" />
+                           <span>{tab.label}</span>
+                        </button>
+                     );
+                  })}
+               </div>
+
+               {/* Tab Panels Body Content */}
+               <div className={cn("p-4 flex-1 overflow-y-auto scrollbar-thin flex flex-col gap-4",
+                  theme === "dark" ? "bg-[#0b0f19]/40" : "bg-white/40"
+               )}>
+                  
+                  {activeSettingsTab === "profile" && (
+                     <div className="flex flex-col gap-4 animate-fade-in">
+                        {/* Avatar Profile Section */}
+                        <div className="flex items-center gap-4 p-3 rounded-2xl border border-gray-150 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/10">
+                           <div className="relative group shrink-0 w-14 h-14 rounded-full border border-orange-200 dark:border-orange-850 flex items-center justify-center bg-orange-100/50 overflow-hidden font-black">
+                              {userProfilePic ? (
+                                 <img src={userProfilePic} className="w-full h-full object-cover" alt="Profile" />
+                              ) : (
+                                 <User className="w-6 h-6 text-[#f97316]" />
                               )}
-                           >
-                              <Icon className="w-4 h-4 shrink-0" />
-                              <span>{tab.label}</span>
-                           </button>
-                        );
-                     })}
-                  </div>
-
-                  {/* Content Container */}
-                  <div className="flex-1 flex flex-col min-h-0 bg-transparent">
-                     
-                     {/* Header */}
-                     <div className="flex items-center justify-between p-4 border-b border-gray-150 dark:border-gray-800 shrink-0">
-                        <h2 className="font-extrabold text-base tracking-tight text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                           {activeSettingsTab === "profile" && "👤 প্রোফাইল সেটিংস (My Profile)"}
-                           {activeSettingsTab === "persona" && "🤖 এআই পারসোনা ও মুড সেটিংস (AI Persona)"}
-                           {activeSettingsTab === "voice" && "🔊 সাউন্ড ও ভয়েস সেটিংস (Voice & Audio)"}
-                           {activeSettingsTab === "backup" && "📂 ডেটা ও ব্যাকআপ (Backup & Utility)"}
-                        </h2>
-                        <button onClick={() => { setIsSettingsOpen(false); if (soundEnabled) playSweetChime(); }} className="p-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500 dark:text-gray-400 cursor-pointer">
-                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                        </button>
-                     </div>
-
-                     {/* Tab Panels Body */}
-                     <div className="p-5 flex-1 overflow-y-auto scrollbar-thin flex flex-col gap-4">
-                        
-                        {activeSettingsTab === "profile" && (
-                           <div className="flex flex-col gap-4">
-                              
-                              {/* Avatar Profile Section */}
-                              <div className="flex items-center gap-4 p-3.5 rounded-2xl border border-gray-150 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/10">
-                                 <div className="relative group shrink-0 w-16 h-16 rounded-full border-2 border-orange-200 dark:border-orange-850 flex items-center justify-center bg-orange-100/50 overflow-hidden">
-                                    {userProfilePic ? (
-                                       <img src={userProfilePic} className="w-full h-full object-cover" alt="Profile" />
-                                    ) : (
-                                       <User className="w-7 h-7 text-[#f97316]" />
-                                    )}
-                                    <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[9px] text-white font-bold cursor-pointer transition-opacity">
-                                       আপলোড
-                                       <input 
-                                          type="file" 
-                                          accept="image/*" 
-                                          className="hidden" 
-                                          onChange={(e) => {
-                                             const file = e.target.files?.[0];
-                                             if (file) {
-                                                if (file.size > 1 * 1024 * 1024) {
-                                                   alert("ইমেজ সাইজ ১ মেগাবাইট বা তার চেয়ে কম হতে হবে!");
-                                                   return;
-                                                }
-                                                const reader = new FileReader();
-                                                reader.onload = (event) => {
-                                                   const base64 = event.target?.result as string;
-                                                   if (base64) {
-                                                      handleUpdateProfileField("userProfilePic", base64);
-                                                   }
-                                                };
-                                                reader.readAsDataURL(file);
-                                             }
-                                          }} 
-                                       />
-                                    </label>
-                                 </div>
-                                 <div className="flex-1 min-w-0">
-                                    <h4 className="text-xs font-black text-gray-700 dark:text-gray-200 uppercase tracking-wider mb-1">প্রোফাইল পিকচার (Avatar)</h4>
-                                    <p className="text-[10px] text-gray-400 dark:text-gray-505 font-bold mb-2">আপনার নিজের ছবি বা কিউট অবতার সেভ করে রাখুন।</p>
-                                    <div className="flex items-center gap-2">
-                                       <label className="px-2.5 py-1.5 rounded-lg bg-[#f97316] text-white text-[10px] font-black cursor-pointer shadow-sm hover:brightness-105 active:scale-95 transition-all">
-                                          আপলোড করুন 📸
-                                          <input 
-                                             type="file" 
-                                             accept="image/*" 
-                                             className="hidden" 
-                                             onChange={(e) => {
-                                                const file = e.target.files?.[0];
-                                                if (file) {
-                                                   if (file.size > 1 * 1024 * 1024) {
-                                                      alert("ইমেজ সাইজ ১ মেগাবাইট বা তার চেয়ে কম হতে হবে!");
-                                                      return;
-                                                   }
-                                                   const reader = new FileReader();
-                                                   reader.onload = (event) => {
-                                                      const base64 = event.target?.result as string;
-                                                      if (base64) {
-                                                         handleUpdateProfileField("userProfilePic", base64);
-                                                      }
-                                                   };
-                                                   reader.readAsDataURL(file);
-                                                }
-                                             }} 
-                                          />
-                                       </label>
-                                       {userProfilePic && (
-                                          <button 
-                                             onClick={() => handleUpdateProfileField("userProfilePic", "")}
-                                             className="px-2 py-1.5 rounded-lg border border-red-200 text-red-500 text-[10px] font-black hover:bg-red-550 hover:text-white transition-all cursor-pointer"
-                                          >
-                                             মুছে ফেলুন
-                                          </button>
-                                       )}
-                                    </div>
-                                 </div>
-                              </div>
-
-                              {/* Input: Nickname / user name */}
-                              <div className="flex flex-col gap-1.5">
-                                 <label className="text-[10px] font-black text-gray-400 dark:text-gray-505 uppercase tracking-widest">আপনার ডাকনাম (User Nickname)</label>
+                              <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[8px] text-white font-black cursor-pointer transition-opacity">
+                                 আপলোড
                                  <input 
-                                    type="text" 
-                                    value={userName} 
-                                    onChange={(e) => handleUpdateProfileField("userName", e.target.value)} 
-                                    className={cn("w-full rounded-xl p-3 font-semibold text-sm border focus:ring-2 focus:ring-[#f97316] outline-none transition-all", theme === "dark" ? "bg-gray-800 border-gray-700 text-white placeholder-gray-650" : "bg-gray-50 border-gray-200 text-gray-800")}
-                                    placeholder="আপনার সুন্দর ডাকনাম লিখুন..."
-                                 />
-                              </div>
-
-                              {/* Dropdown: Love Language */}
-                              <div className="flex flex-col gap-1.5">
-                                 <label className="text-[10px] font-black text-gray-400 dark:text-gray-505 uppercase tracking-widest">ভালোবাসার ভাষা (Love Language)</label>
-                                 <select
-                                    value={loveLanguage}
-                                    onChange={(e) => handleUpdateProfileField("loveLanguage", e.target.value)}
-                                    className={cn("w-full rounded-xl p-3 font-semibold text-sm border focus:ring-2 focus:ring-[#f97316] outline-none transition-all cursor-pointer", theme === "dark" ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-50 border-gray-200 text-gray-800")}
-                                 >
-                                    <option value="Words of Affirmation">💖 প্রশংসা ও মিষ্টি কথা (Words of Affirmation)</option>
-                                    <option value="Quality Time">⏱️ চমৎকার সময় কাটানো (Quality Time)</option>
-                                    <option value="Receiving Gifts">🎁 কিউট উপহার আদান-প্রধান (Receiving Gifts)</option>
-                                    <option value="Acts of Service">🤝 সাহায্যে হাত বাড়ানো (Acts of Service)</option>
-                                    <option value="Physical Touch">🤗 স্পর্শ ও জড়িয়ে ধরা (Physical Touch)</option>
-                                 </select>
-                              </div>
-
-                              {/* Datepicker: Anniversary Date */}
-                              <div className="flex flex-col gap-1.5">
-                                 <label className="text-[10px] font-black text-gray-400 dark:text-gray-505 uppercase tracking-widest">পরিচয় বা অ্যানিভার্সারি ডেট (Anniversary Date)</label>
-                                 <input 
-                                    type="date" 
-                                    value={anniversaryDate} 
-                                    onChange={(e) => handleUpdateProfileField("anniversaryDate", e.target.value)} 
-                                    className={cn("w-full rounded-xl p-3 font-semibold text-sm border focus:ring-2 focus:ring-[#f97316] outline-none transition-all cursor-pointer", theme === "dark" ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-50 border-gray-200 text-gray-800")}
-                                 />
-                              </div>
-
-                           </div>
-                        )}
-
-                        {activeSettingsTab === "persona" && (
-                           <div className="flex flex-col gap-4">
-                              
-                              {/* Chatbot Profile Name */}
-                              <div className="flex flex-col gap-1.5">
-                                 <label className="text-[10px] font-black text-gray-400 dark:text-gray-550 uppercase tracking-widest">চ্যাটবটের নাম (AI Name)</label>
-                                 <input 
-                                    type="text" 
-                                    value={botName} 
+                                    type="file" 
+                                    accept="image/*" 
+                                    className="hidden" 
                                     onChange={(e) => {
-                                       setBotName(e.target.value);
-                                       localStorage.setItem("botName", e.target.value);
-                                    }} 
-                                    className={cn("w-full rounded-xl p-3 font-semibold text-sm border focus:ring-2 focus:ring-[#f97316] outline-none transition-all", theme === "dark" ? "bg-gray-800 border-gray-700 text-white placeholder-gray-650" : "bg-gray-50 border-gray-200 text-gray-800")}
-                                    placeholder="চ্যাটবটের কিউট নাম লিখুন..."
-                                 />
-                              </div>
-
-                              {/* AI Creativity Temperature Slider */}
-                              <div className="flex flex-col gap-2 p-3.5 rounded-2xl border border-gray-150 dark:border-gray-800 bg-gray-50/20 dark:bg-gray-900/10">
-                                 <div className="flex items-center justify-between text-[10px] font-black text-gray-400 dark:text-gray-550 uppercase tracking-widest">
-                                    <span>এআই ক্রিয়েটিভিটি (Temperature)</span>
-                                    <span className="text-[#f97316] font-extrabold">{aiCreativity.toFixed(1)}</span>
-                                 </div>
-                                 <div className="flex items-center gap-3 mt-1">
-                                    <Sliders className="w-4 h-4 text-gray-405" />
-                                    <input 
-                                       type="range" 
-                                       min="0.1" 
-                                       max="1.5" 
-                                       step="0.1"
-                                       value={aiCreativity} 
-                                       onChange={(e) => {
-                                          const val = Number(e.target.value);
-                                          setAiCreativity(val);
-                                          localStorage.setItem("aiCreativity", String(val));
-                                       }} 
-                                       className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#f97316]"
-                                    />
-                                 </div>
-                                 <div className="flex justify-between text-[9px] font-black text-gray-400 dark:text-gray-505 select-none">
-                                    <span>শান্ত (Strict)</span>
-                                    <span>ভারসাম্যপূর্ণ (Balanced)</span>
-                                    <span>সৃজনশীল (Creative)</span>
-                                 </div>
-                              </div>
-
-                              {/* Custom Prompts System prompt block */}
-                              <div className="flex flex-col gap-2">
-                                 <label className="text-[10px] font-black text-gray-400 dark:text-gray-550 uppercase tracking-widest">মুড অনুযায়ী সিস্টেম প্রম্পট (System Prompts)</label>
-                                 
-                                 <div className="flex flex-wrap gap-1 bg-gray-105 dark:bg-gray-850 p-1 rounded-xl">
-                                    {(Object.keys(MODES) as Mode[]).map((mKey) => (
-                                       <button
-                                          key={mKey}
-                                          type="button"
-                                          onClick={() => {
-                                             setEditPromptMode(mKey);
-                                             if (soundEnabled) playSweetChime();
-                                          }}
-                                          className={cn(
-                                             "px-2 py-1.5 text-[10px] font-bold rounded-lg transition-all flex-1 text-center shrink-0 min-w-[60px] cursor-pointer",
-                                             editPromptMode === mKey
-                                                ? "bg-white dark:bg-gray-700 text-[#f97316] dark:text-white shadow-sm"
-                                                : "text-gray-550 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-                                          )}
-                                       >
-                                          {MODES[mKey].label.split(" ")[0]}
-                                       </button>
-                                    ))}
-                                 </div>
-
-                                 <div className="relative mt-1">
-                                    <textarea
-                                       rows={4}
-                                       value={customPrompts[editPromptMode] || MODES[editPromptMode].prompt}
-                                       onChange={(e) => handleUpdatePrompt(editPromptMode, e.target.value)}
-                                       className={cn("w-full rounded-xl p-3 font-semibold text-xs border focus:ring-2 focus:ring-[#f97316] outline-none transition-all leading-relaxed", theme === "dark" ? "bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-650" : "bg-gray-50 border-gray-200 text-gray-700")}
-                                    />
-                                    <button 
-                                       onClick={() => {
-                                          resetPromptToDefault(editPromptMode);
-                                          if (soundEnabled) playSweetChime();
-                                       }}
-                                       type="button"
-                                       className="absolute bottom-3 right-3 p-1.5 bg-red-500 hover:bg-red-605 rounded-lg text-white font-extrabold transition-all shadow-md active:scale-95 flex items-center gap-1 text-[9px] cursor-pointer"
-                                       title="ডিফল্ট প্রম্পটে রিসেট করুন"
-                                    >
-                                       <RotateCcw className="w-3 h-3" />
-                                       রিসেট
-                                    </button>
-                                 </div>
-                                 <p className="text-[10px] text-gray-400 dark:text-gray-550 font-bold leading-relaxed">
-                                    💡 হুমাইরা {MODES[editPromptMode].label} এ কীভাবে আচরণ করবে তা এই প্রম্পট ও নিয়ম দ্বারা প্রভাবিত হয়।
-                                 </p>
-                              </div>
-
-                           </div>
-                        )}
-
-                        {activeSettingsTab === "voice" && (
-                           <div className="flex flex-col gap-4">
-                              
-                              {/* Audio sound settings toggle */}
-                              <div className="flex items-center justify-between p-3.5 rounded-2xl border border-gray-150 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/10">
-                                 <div className="flex flex-col gap-0.5">
-                                    <span className="text-xs font-bold text-gray-700 dark:text-gray-200">অ্যাপ সাউন্ড ইফেক্টস (Sound Effects)</span>
-                                    <span className="text-[10px] text-gray-400 dark:text-gray-505 font-bold">মেসেজ শেষ হলে চমৎকার কিউট রিং বাজবে</span>
-                                 </div>
-                                 <button 
-                                    onClick={() => {
-                                       const next = !soundEnabled;
-                                       setSoundEnabled(next);
-                                       localStorage.setItem("soundEnabled", String(next));
-                                       if (next) playSweetChime();
-                                    }}
-                                    type="button"
-                                    className={cn("w-11 h-5.5 rounded-full p-0.5 transition-colors relative duration-300 cursor-pointer", soundEnabled ? "bg-[#f97316]" : "bg-gray-300 dark:bg-gray-700")}
-                                 >
-                                    <div className={cn("w-4.5 h-4.5 rounded-full bg-white shadow-md transform transition-all duration-300", soundEnabled ? "translate-x-5.5" : "translate-x-0")} />
-                                 </button>
-                              </div>
-
-                              {/* Speech Voice (TTS Rate / Speed) selector slider */}
-                              <div className="flex flex-col gap-2 p-3.5 rounded-2xl border border-gray-150 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/10">
-                                 <div className="flex items-center justify-between text-[10px] font-black text-gray-400 dark:text-gray-550 uppercase tracking-widest font-bold">
-                                    <span>কথা বলার স্পিড বা গতি (TTS Speed)</span>
-                                    <span className="text-[#f97316] font-extrabold">{ttsSpeed.toFixed(1)}x</span>
-                                 </div>
-                                 <div className="flex items-center gap-3 mt-1">
-                                    <Volume2 className="w-4 h-4 text-gray-405 shrink-0" />
-                                    <input 
-                                       type="range" 
-                                       min="0.5" 
-                                       max="2.0" 
-                                       step="0.1"
-                                       value={ttsSpeed} 
-                                       onChange={(e) => {
-                                          const val = Number(e.target.value);
-                                          setTtsSpeed(val);
-                                          localStorage.setItem("ttsSpeed", String(val));
-                                       }} 
-                                       className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#f97316]"
-                                    />
-                                 </div>
-                                 <div className="flex justify-between text-[9px] font-black text-gray-400 dark:text-gray-505 select-none">
-                                    <span>ধীর (Slow)</span>
-                                    <span>স্বাভাবিক (1.0x)</span>
-                                    <span>দ্রুত (Fast)</span>
-                                 </div>
-                              </div>
-
-                              {/* Live Voice Preview */}
-                              <div className="p-3.5 bg-orange-50/50 dark:bg-orange-950/10 border border-orange-150/50 dark:border-orange-900/60 rounded-xl">
-                                 <p className="text-[11px] text-gray-650 dark:text-gray-400 font-bold leading-relaxed font-semibold">
-                                    🗣️ আপনার ডিভাইসের বাংলা ভয়েস ইঞ্জিন দিয়ে প্রম্পট পাঠ করা হবে। কথা শুনতে চ্যাটের প্রতিটি মেসেজের পাশে স্পিকার আইকনটিতে ট্যাপ করুন।
-                                 </p>
-                              </div>
-
-                           </div>
-                        )}
-
-                        {activeSettingsTab === "backup" && (
-                           <div className="flex flex-col gap-4">
-                              
-                              {/* Backup Info Banner */}
-                              <div className="p-3.5 bg-blue-50/50 dark:bg-blue-950/10 border border-blue-150/40 dark:border-blue-900/50 rounded-xl">
-                                 <p className="text-xs text-blue-800 dark:text-blue-300 font-bold mb-1 flex items-center gap-1.5">
-                                    <span>💾 ডেটা ব্যাকআপ ও রিকভারি</span>
-                                 </p>
-                                 <p className="text-[10px] text-blue-650 dark:text-blue-400 font-bold leading-relaxed">
-                                    আপনার স্মৃতিগুলো হারিয়ে যাওয়া থেকে রক্ষা করতে সব কথা ব্যাকআপ হিসেবে ডাউনলোড করুন অথবা সংরক্ষিত ব্যাকআপ আপলোড করুন।
-                                 </p>
-                              </div>
-
-                              {/* Row action buttons: Export and Import */}
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                 
-                                 {/* Export Card */}
-                                 <div className="p-3.5 rounded-2xl border border-gray-150 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-900/10 flex flex-col justify-between min-h-[110px]">
-                                    <div>
-                                       <h4 className="text-xs font-black text-gray-700 dark:text-gray-200">এক্সপোর্ট ব্যাকআপ 📤</h4>
-                                       <p className="text-[9.5px] text-gray-405 dark:text-gray-500 font-bold leading-relaxed mt-1">সব চ্যাট হিস্ট্রি ফাইল হিসেবে ডাউনলোড করে সেভ করে রাখুন।</p>
-                                    </div>
-                                    <button
-                                       type="button"
-                                       onClick={handleExportChats}
-                                       className="w-full mt-3 py-2 text-xs font-black text-white bg-gradient-to-r from-orange-500 to-[#f97316] hover:brightness-105 active:scale-95 rounded-xl transition-all shadow-sm cursor-pointer"
-                                    >
-                                       ব্যাকআপ ডাউনলোড করুন
-                                    </button>
-                                 </div>
-
-                                 {/* Import Card */}
-                                 <div className="p-3.5 rounded-2xl border border-gray-150 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-900/10 flex flex-col justify-between min-h-[110px]">
-                                    <div>
-                                       <h4 className="text-xs font-black text-gray-700 dark:text-gray-200">ইম্পোর্ট ব্যাকআপ 📥</h4>
-                                       <p className="text-[9.5px] text-gray-405 dark:text-gray-500 font-bold leading-relaxed mt-1">পূর্বে সেভ করা চ্যাট ব্যাকআপ ফাইলটি আপলোড করে স্মৃতি ফিরে পান।</p>
-                                    </div>
-                                    <label className="w-full mt-3 py-2 text-[11px] font-black text-[#f97316] dark:text-orange-400 bg-gray-100 dark:bg-gray-800 text-center hover:bg-gray-200 dark:hover:bg-gray-750 active:scale-95 rounded-xl transition-all border border-dashed border-gray-200 dark:border-gray-700 block cursor-pointer">
-                                       ফাইল আপলোড করুন 📁
-                                       <input 
-                                          type="file" 
-                                          accept=".json" 
-                                          className="hidden" 
-                                          onChange={handleImportChats}
-                                       />
-                                    </label>
-                                 </div>
-
-                              </div>
-
-                              <div className="h-[0.5px] w-full bg-gray-205 dark:bg-gray-850" />
-
-                              {/* Danger Zone */}
-                              <div className="flex flex-col gap-2 bg-red-50/20 dark:bg-red-950/5 p-3 rounded-2xl border border-red-100/50 dark:border-red-950/40">
-                                 <span className="text-[9.5px] font-black text-red-500 uppercase tracking-widest">বিপজ্জনক এলাকা (Danger Zone)</span>
-                                 <p className="text-[10px] text-gray-400 dark:text-gray-505 font-bold mb-1 leading-relaxed">
-                                    এটি ড্রাস্টিক অ্যাকশন যা সমস্ত সংরক্ষিত ডেটা চিরতরে মুছে ফেলে। চ্যাট ডিলিট করার আগে ব্যাকআপ করে নিন।
-                                 </p>
-                                 <button 
-                                    onClick={() => {
-                                       if (confirm("আপনি কি নিশ্চিতভাবে সব চ্যাট ডিলিট করতে চান? এটি আর ফিরিয়ে আনা সম্ভব নয়।")) {
-                                          setChats([]);
-                                          setActiveChatId(null);
-                                          setIsSettingsOpen(false);
-                                          if (soundEnabled) playSweetChime();
+                                       const file = e.target.files?.[0];
+                                       if (file) {
+                                          if (file.size > 1 * 1024 * 1024) {
+                                             showToast("ইমেজ সাইজ ১ মেগাবাইট বা কম হতে হবে!", "error");
+                                             return;
+                                          }
+                                          const reader = new FileReader();
+                                          reader.onload = (event) => {
+                                             const base64 = event.target?.result as string;
+                                             if (base64) {
+                                                handleUpdateProfileField("userProfilePic", base64);
+                                             }
+                                          };
+                                          reader.readAsDataURL(file);
                                        }
-                                    }}
-                                    type="button"
-                                    className="w-full py-2 rounded-xl border border-red-200/60 dark:border-red-950/50 hover:bg-red-500 hover:text-white bg-red-50/50 dark:bg-red-950/10 text-red-600 dark:text-[#f87171] flex items-center justify-center gap-2 font-black text-xs shadow-xs transition-all active:scale-95 cursor-pointer min-h-[36px]"
-                                 >
-                                    🗑️ সমস্ত চ্যাট হিস্ট্রি মুছে ফেলুন
-                                 </button>
-                              </div>
-
+                                    }} 
+                                 />
+                              </label>
                            </div>
-                        )}
+                           <div className="flex-1 min-w-0">
+                              <h4 className="text-[11px] font-black text-gray-700 dark:text-gray-200 uppercase tracking-wider mb-0.5">প্রোফাইল পিকচার</h4>
+                              <p className="text-[9px] text-gray-400 dark:text-gray-500 font-bold mb-1.5">আপনার সুন্দর প্রোফাইল অবতার আপলোড করুন।</p>
+                              <div className="flex items-center gap-1.5">
+                                 <label className="px-2.5 py-1 rounded-lg bg-[#f97316] text-white text-[9px] font-black cursor-pointer shadow-sm hover:brightness-105 active:scale-95 transition-all">
+                                    আপলোড 📸
+                                    <input 
+                                       type="file" 
+                                       accept="image/*" 
+                                       className="hidden" 
+                                       onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) {
+                                             if (file.size > 1 * 1024 * 1024) {
+                                                showToast("ইমেজ সাইজ ১ মেগাবাইট বা কম হতে হবে!", "error");
+                                                return;
+                                             }
+                                             const reader = new FileReader();
+                                             reader.onload = (event) => {
+                                                const base64 = event.target?.result as string;
+                                                if (base64) {
+                                                   handleUpdateProfileField("userProfilePic", base64);
+                                                }
+                                             };
+                                             reader.readAsDataURL(file);
+                                          }
+                                       }} 
+                                    />
+                                 </label>
+                                 {userProfilePic && (
+                                    <button 
+                                       type="button"
+                                       onClick={() => handleUpdateProfileField("userProfilePic", "")}
+                                       className="px-2 py-1 rounded-lg border border-red-200 text-red-500 text-[9px] font-black hover:bg-red-50 dark:hover:bg-red-950/20 transition-all cursor-pointer"
+                                    >
+                                       মুছুন
+                                    </button>
+                                 )}
+                              </div>
+                           </div>
+                        </div>
 
+                        {/* Input User nickname */}
+                        <div className="flex flex-col gap-1">
+                           <label className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">আপনার ডাকনাম (User Nickname)</label>
+                           <input 
+                              type="text" 
+                              value={userName} 
+                              onChange={(e) => handleUpdateProfileField("userName", e.target.value)} 
+                              className={cn("w-full rounded-xl p-2.5 font-bold text-xs border focus:ring-2 focus:ring-[#f97316] outline-none transition-all", theme === "dark" ? "bg-slate-900 border-slate-800 text-white placeholder-slate-655" : "bg-slate-50 border-slate-200 text-gray-800")}
+                              placeholder="আপনার সুন্দর ডাকনাম লিখুন..."
+                           />
+                        </div>
+
+                        {/* Dropdown: Love language */}
+                        <div className="flex flex-col gap-1">
+                           <label className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">ভালোবাসার ভাষা (Love Language)</label>
+                           <select
+                              value={loveLanguage}
+                              onChange={(e) => handleUpdateProfileField("loveLanguage", e.target.value)}
+                              className={cn("w-full rounded-xl p-2.5 font-bold text-xs border focus:ring-2 focus:ring-[#f97316] outline-none transition-all cursor-pointer", theme === "dark" ? "bg-slate-900 border-slate-800 text-white" : "bg-slate-50 border-slate-200 text-gray-800")}
+                           >
+                              <option value="Words of Affirmation">💖 প্রশংসা ও মিষ্টি কথা (Words of Affirmation)</option>
+                              <option value="Quality Time">⏱️ চমৎকার সময় কাটানো (Quality Time)</option>
+                              <option value="Receiving Gifts">🎁 কিউট উপহার আদান-প্রধান (Receiving Gifts)</option>
+                              <option value="Acts of Service">🤝 সাহায্যে হাত বাড়ানো (Acts of Service)</option>
+                              <option value="Physical Touch">🤗 স্পর্শ ও জড়িয়ে ধরা (Physical Touch)</option>
+                           </select>
+                        </div>
+
+                        {/* Datepicker: Anniversary Date */}
+                        <div className="flex flex-col gap-1">
+                           <label className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">পরিচয় বা অ্যানিভার্সারি ডেট (Anniversary Date)</label>
+                           <input 
+                              type="date" 
+                              value={anniversaryDate} 
+                              onChange={(e) => handleUpdateProfileField("anniversaryDate", e.target.value)} 
+                              className={cn("w-full rounded-xl p-2.5 font-bold text-xs border focus:ring-2 focus:ring-[#f97316] outline-none transition-all cursor-pointer", theme === "dark" ? "bg-slate-900 border-slate-800 text-white" : "bg-slate-50 border-slate-200 text-gray-800")}
+                           />
+                        </div>
                      </div>
+                  )}
 
-                     {/* Footer */}
-                     <div className="p-4 border-t border-gray-150 dark:border-gray-800 flex justify-end shrink-0 bg-gray-50/50 dark:bg-gray-900/20 gap-2">
-                        <button 
-                           type="button"
-                           onClick={() => {
-                              setIsSettingsOpen(false);
-                              if (soundEnabled) playSweetChime();
-                           }}
-                           className="px-5 py-2 rounded-xl bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-extrabold text-xs transition-all active:scale-95 cursor-pointer"
-                        >
-                           বাতিল করুন
-                        </button>
-                        <button 
-                           type="button"
-                           onClick={() => {
-                              setIsSettingsOpen(false);
-                              if (soundEnabled) playSweetChime();
-                           }}
-                           className="px-6 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-[#f97316] text-white font-extrabold text-xs hover:brightness-105 active:scale-95 transition-all shadow-md cursor-pointer"
-                        >
-                           সংরক্ষণ ও বন্ধ করুন
-                        </button>
+                  {activeSettingsTab === "persona" && (
+                     <div className="flex flex-col gap-4 animate-fade-in">
+                        {/* Chatbot Profile Name */}
+                        <div className="flex flex-col gap-1">
+                           <label className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">চ্যাটবটের নাম (AI Name)</label>
+                           <input 
+                              type="text" 
+                              value={botName} 
+                              onChange={(e) => {
+                                 setBotName(e.target.value);
+                                 localStorage.setItem("botName", e.target.value);
+                                 syncProfile("botName", e.target.value);
+                                 showToast("চ্যাটবটের নাম আপডেট করা হয়েছে! 🤖", "info");
+                              }} 
+                              className={cn("w-full rounded-xl p-2.5 font-bold text-xs border focus:ring-2 focus:ring-[#f97316] outline-none transition-all", theme === "dark" ? "bg-slate-900 border-slate-800 text-white placeholder-slate-655" : "bg-slate-50 border-slate-200 text-gray-800")}
+                              placeholder="চ্যাটবটের কিউট নাম লিখুন..."
+                           />
+                        </div>
+
+                        {/* AI Creativity Slider */}
+                        <div className="flex flex-col gap-2 p-3 rounded-2xl border border-gray-150 dark:border-gray-800 bg-gray-50/20 dark:bg-gray-900/10">
+                           <div className="flex items-center justify-between text-[9px] font-black text-gray-400 dark:text-gray-505 uppercase tracking-widest">
+                              <span>এআই ক্রিয়েটিভিটি (Temperature)</span>
+                              <span className="text-[#f97316] font-black">{aiCreativity.toFixed(1)}</span>
+                           </div>
+                           <div className="flex items-center gap-3">
+                              <Sliders className="w-4 h-4 text-gray-400" />
+                              <input 
+                                 type="range" 
+                                 min="0.1" 
+                                 max="1.5" 
+                                 step="0.1"
+                                 value={aiCreativity} 
+                                 onChange={(e) => {
+                                    const val = Number(e.target.value);
+                                    setAiCreativity(val);
+                                    localStorage.setItem("aiCreativity", String(val));
+                                 }} 
+                                 className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#f97316]"
+                              />
+                           </div>
+                           <div className="flex justify-between text-[8px] font-black text-gray-400 dark:text-gray-500 select-none">
+                              <span>শান্ত (Strict)</span>
+                              <span>ভারসাম্যপূর্ণ (1.0)</span>
+                              <span>সৃজনশীল (Creative)</span>
+                           </div>
+                        </div>
+
+                        {/* Prompt Customization Area */}
+                        <div className="flex flex-col gap-2">
+                           <label className="text-[9px] font-black text-gray-400 dark:text-gray-505 uppercase tracking-widest">মুড অনুযায়ী সিস্টেম প্রম্পট (System Prompts)</label>
+                           
+                           <div className="flex flex-wrap gap-1 bg-gray-100 dark:bg-slate-900 p-1 rounded-xl border border-gray-150 dark:border-slate-800">
+                              {(Object.keys(MODES) as Mode[]).map((mKey) => (
+                                 <button
+                                    key={mKey}
+                                    type="button"
+                                    onClick={() => {
+                                       setEditPromptMode(mKey);
+                                       if (soundEnabled) playSweetChime();
+                                    }}
+                                    className={cn(
+                                       "px-2 py-1 text-[9px] font-black rounded-lg transition-all flex-1 text-center shrink-0 min-w-[50px] cursor-pointer",
+                                       editPromptMode === mKey
+                                          ? "bg-white dark:bg-slate-800 text-[#f97316] dark:text-white shadow-xs border border-gray-150 dark:border-slate-700"
+                                          : "text-gray-550 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                                    )}
+                                 >
+                                    {MODES[mKey].label.split(" ")[0]}
+                                 </button>
+                              ))}
+                           </div>
+
+                           <div className="relative mt-1">
+                              <textarea
+                                 rows={4}
+                                 value={customPrompts[editPromptMode] || MODES[editPromptMode].prompt}
+                                 onChange={(e) => handleUpdatePrompt(editPromptMode, e.target.value)}
+                                 className={cn("w-full rounded-xl p-2.5 font-bold text-[10px] sm:text-xs border focus:ring-2 focus:ring-[#f97316] outline-none transition-all leading-relaxed", theme === "dark" ? "bg-slate-900 border-slate-800 text-gray-100 placeholder-slate-750" : "bg-slate-50 border-slate-200 text-gray-700")}
+                              />
+                              <button 
+                                 onClick={() => {
+                                    resetPromptToDefault(editPromptMode);
+                                    if (soundEnabled) playSweetChime();
+                                 }}
+                                 type="button"
+                                 className="absolute bottom-3 right-3 px-2 py-1 bg-red-500 hover:bg-red-600 rounded-lg text-white font-black transition-all shadow-md active:scale-95 flex items-center gap-1 text-[8px] cursor-pointer"
+                                 title="ডিফল্ট প্রম্পটে রিসেট করুন"
+                              >
+                                 <RotateCcw className="w-2.5 h-2.5" />
+                                 রিসেট
+                              </button>
+                           </div>
+                           <p className="text-[9px] text-gray-400 dark:text-gray-500 font-bold leading-relaxed">
+                              💡 হুমাইরা {MODES[editPromptMode].label} এ কীভাবে রোমান্টিক বা ফানি আচরণ করবে তা এই প্রম্পট দ্বারা প্রভাবিত হয়।
+                           </p>
+                        </div>
                      </div>
+                  )}
 
-                  </div>
-               </motion.div>
+                  {activeSettingsTab === "voice" && (
+                     <div className="flex flex-col gap-4 animate-fade-in">
+                        {/* Audio Toggle */}
+                        <div className="flex items-center justify-between p-3.5 rounded-2xl border border-gray-150 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/10">
+                           <div className="flex flex-col gap-0.5">
+                              <span className="text-[11px] font-black text-gray-750 dark:text-gray-200">অ্যাপ সাউন্ড ইফেক্টস (Sound Effects)</span>
+                              <span className="text-[9px] text-gray-450 dark:text-gray-500 font-bold">মিষ্টি কিউট সাউন্ড ফিডব্যাক ট্রিগার করবে</span>
+                           </div>
+                           <button 
+                              onClick={() => {
+                                 const next = !soundEnabled;
+                                 setSoundEnabled(next);
+                                 localStorage.setItem("soundEnabled", String(next));
+                                 if (next) playSweetChime();
+                              }}
+                              type="button"
+                              className={cn("w-10 h-5 rounded-full p-0.5 transition-colors relative duration-300 cursor-pointer", soundEnabled ? "bg-[#f97316]" : "bg-gray-300 dark:bg-gray-700")}
+                           >
+                              <div className={cn("w-4 h-4 rounded-full bg-white shadow-sm transform transition-all duration-300", soundEnabled ? "translate-x-5" : "translate-x-0")} />
+                           </button>
+                        </div>
+
+                        {/* TTS speed slider */}
+                        <div className="flex flex-col gap-2 p-3 rounded-2xl border border-gray-150 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/10">
+                           <div className="flex items-center justify-between text-[9px] font-black text-gray-400 dark:text-gray-505 uppercase tracking-widest font-bold">
+                              <span>কথা বলার স্পিড বা গতি (TTS Speed)</span>
+                              <span className="text-[#f97316] font-black">{ttsSpeed.toFixed(1)}x</span>
+                           </div>
+                           <div className="flex items-center gap-3">
+                              <Volume2 className="w-4 h-4 text-gray-400 shrink-0" />
+                              <input 
+                                 type="range" 
+                                 min="0.5" 
+                                 max="2.0" 
+                                 step="0.1"
+                                 value={ttsSpeed} 
+                                 onChange={(e) => {
+                                    const val = Number(e.target.value);
+                                    setTtsSpeed(val);
+                                    localStorage.setItem("ttsSpeed", String(val));
+                                 }} 
+                                 className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#f97316]"
+                              />
+                           </div>
+                           <div className="flex justify-between text-[8px] font-black text-gray-400 dark:text-gray-505 select-none">
+                              <span>ধীর (Slow)</span>
+                              <span>স্বাভাবিক (1.0x)</span>
+                              <span>দ্রুত (Fast)</span>
+                           </div>
+                        </div>
+
+                        {/* Hint box */}
+                        <div className="p-3 bg-orange-50/30 dark:bg-orange-950/10 border border-orange-200/40 dark:border-orange-900/40 rounded-2xl">
+                           <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold leading-relaxed">
+                              🗣️ হুমাইরার মিষ্টি বাংলা ভয়েস আপনার লোকাল ব্রাউজারের বাংলা ইঞ্জিনের সাহায্যে শোনানো হয়। কথা বন্ধ করতে স্পিকার বাটনে আবারও ট্যাপ করুন।
+                           </p>
+                        </div>
+                     </div>
+                  )}
+
+                  {activeSettingsTab === "analytics" && (
+                     <div className="flex flex-col gap-4 animate-fade-in">
+                        {/* Sentiment Analysis Heading block */}
+                        <div className="p-3 bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-transparent border border-[#f97316]/20 rounded-2xl">
+                           <span className="text-[9px] font-black tracking-widest uppercase text-[#f97316]">📊 রিলেশনশিপ মুড এনালাইটিক্স</span>
+                           <h4 className="text-xs font-black text-gray-800 dark:text-gray-100 mt-1">হুমাইরা বন্ড ট্র্যাকার ও অনুভূতি বিশ্লেষণ</h4>
+                           <p className="text-[10px] text-[#f97316] font-bold mt-1 leading-relaxed">
+                              💖 হুমাইরার সাথে আপনার সম্পর্কের স্থিতি: চমৎকার ও রোমান্টিক! অনুভূতিগুলো নিচে ট্র্যাক করা হলো।
+                           </p>
+                        </div>
+
+                        {/* Recharts BarChart Visualization */}
+                        <div className={cn("p-3 rounded-2xl border flex flex-col items-center justify-center h-[200px] w-full shadow-sm",
+                           theme === "dark" ? "bg-slate-900/50 border-slate-800" : "bg-slate-50 border-gray-150"
+                        )}>
+                           <span className="text-[8.5px] font-black text-gray-400 dark:text-gray-505 mb-2 uppercase tracking-wider">কথোপকথনের অনুভূতি ডিস্ট্রিবিউশন</span>
+                           <ResponsiveContainer width="100%" height="85%">
+                              <BarChart data={analyzeSentiment()}>
+                                 <XAxis dataKey="name" tick={{ fontSize: 9, fontWeight: "bold" }} stroke={theme === "dark" ? "#64748b" : "#94a3b8"} axisLine={false} tickLine={false} />
+                                 <YAxis hide />
+                                 <Tooltip 
+                                    contentStyle={{ 
+                                       backgroundColor: theme === "dark" ? "#0f172a" : "#ffffff", 
+                                       border: theme === "dark" ? "none" : "1px solid #e2e8f0", 
+                                       borderRadius: "12px",
+                                       fontSize: "10px",
+                                       fontWeight: "bold"
+                                    }} 
+                                 />
+                                 <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                                    {analyzeSentiment().map((entry, index) => (
+                                       <Cell key={`cell-${index}`} fill={entry.color} />
+                                    ))}
+                                 </Bar>
+                              </BarChart>
+                           </ResponsiveContainer>
+                        </div>
+
+                        {/* Stats Metrics Grid */}
+                        <div className="grid grid-cols-2 gap-2">
+                           <div className="p-3 rounded-xl border border-gray-150 dark:border-gray-850 bg-gray-50/20 dark:bg-gray-900/10 text-center">
+                              <span className="text-[8px] text-gray-405 dark:text-gray-500 uppercase font-black">মোট বার্তা সংখ্যা</span>
+                              <p className="text-xs font-black text-orange-500 mt-0.5">{chats.reduce((total, chat) => total + chat.messages.length, 0)}</p>
+                           </div>
+                           <div className="p-3 rounded-xl border border-gray-150 dark:border-gray-850 bg-gray-50/20 dark:bg-gray-900/10 text-center">
+                              <span className="text-[8px] text-gray-450 dark:text-gray-500 uppercase font-black">বর্তমান এআই এক্সপি (Chat XP)</span>
+                              <p className="text-xs font-black text-amber-500 mt-0.5">⭐ {xp}</p>
+                           </div>
+                        </div>
+                     </div>
+                  )}
+
+                  {activeSettingsTab === "backup" && (
+                     <div className="flex flex-col gap-4 animate-fade-in">
+                        {/* Info banner */}
+                        <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
+                           <h5 className="text-[11px] font-black text-blue-800 dark:text-blue-400 flex items-center gap-1">
+                              <span>📂 ডেটা ব্যাকআপ ও স্মৃতি ব্যবস্থাপনা</span>
+                           </h5>
+                           <p className="text-[9.5px] text-blue-600 dark:text-blue-300 font-bold mt-1 leading-relaxed">
+                              তথ্য ও চ্যাট সুরক্ষায় সংরক্ষিত ডেটা ডাউনলোড করুন অথবা ব্যাকআপ আপলোড করে হুমাইরার স্মৃতি ফিরিয়ে নিয়ে আসুন।
+                           </p>
+                        </div>
+
+                        {/* Action details */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                           {/* Export */}
+                           <div className="p-3 rounded-2xl border border-gray-150 dark:border-gray-800 bg-gray-50/20 dark:bg-gray-900/10 flex flex-col justify-between">
+                              <div>
+                                 <h4 className="text-[11px] font-black text-gray-750 dark:text-gray-200">এক্সপোর্ট চ্যাট 📤</h4>
+                                 <p className="text-[8.5px] text-gray-450 dark:text-gray-500 font-bold leading-relaxed mt-1">সব চ্যাট ফাইল রূপে রিকভারির জন্য ডাউনলোড করুন।</p>
+                              </div>
+                              <button
+                                 type="button"
+                                 onClick={handleExportChats}
+                                 className="w-full mt-3 py-1.5 text-[10px] font-black text-white bg-[#f97316] hover:brightness-105 active:scale-95 rounded-lg transition-all cursor-pointer min-h-[28px]"
+                              >
+                                 ডাউনলোড করুন
+                              </button>
+                           </div>
+
+                           {/* Import */}
+                           <div className="p-3 rounded-2xl border border-gray-150 dark:border-gray-800 bg-gray-50/20 dark:bg-gray-900/10 flex flex-col justify-between">
+                              <div>
+                                 <h4 className="text-[11px] font-black text-gray-750 dark:text-gray-200">ইম্পোর্ট ব্যাকআপ 📥</h4>
+                                 <p className="text-[8.5px] text-gray-450 dark:text-gray-500 font-bold leading-relaxed mt-1">পূর্বে সেভ করা চ্যাট ব্যাকআপ আপলোড করুন।</p>
+                              </div>
+                              <label className="w-full mt-3 py-1.5 text-[10px] font-black text-[#f97316] dark:text-orange-400 bg-gray-100 dark:bg-slate-800 text-center hover:bg-gray-200 dark:hover:bg-slate-750 active:scale-95 rounded-lg transition-all border border-dashed border-gray-200 dark:border-slate-700 block cursor-pointer">
+                                 ফাইল আপলোড করুন 📁
+                                 <input 
+                                    type="file" 
+                                    accept=".json" 
+                                    className="hidden" 
+                                    onChange={handleImportChats}
+                                 />
+                              </label>
+                           </div>
+                        </div>
+
+                        {/* Separation line */}
+                        <div className="h-[0.5px] w-full bg-gray-200 dark:bg-gray-800" />
+
+                        {/* Danger zone */}
+                        <div className="p-3 bg-red-500/5 rounded-2xl border border-red-500/15 flex flex-col gap-1.5">
+                           <span className="text-[8.5px] font-black text-red-500 uppercase tracking-widest">বিপজ্জনক এলাকা (Danger Zone)</span>
+                           <p className="text-[9.5px] text-gray-400 dark:text-gray-500 font-bold leading-relaxed">
+                              সমস্ত স্মৃতি বা চ্যাট হিস্ট্রি চিরতরে মুছে প্রস্থান করুন। এটি কোনোভাবেই ফিরিয়ে আনা সম্ভব না।
+                           </p>
+                           <button 
+                              onClick={() => {
+                                 if (confirm("আপনি কি নিশ্চিতভাবে সব চ্যাট ডিলিট করতে চান? এটি আর ফিরিয়ে আনা সম্ভব নয়।")) {
+                                    setChats([]);
+                                    setActiveChatId(null);
+                                    setCurrentView("chat");
+                                    if (soundEnabled) playSweetChime();
+                                 }
+                              }}
+                              type="button"
+                              className="w-full py-1.5 rounded-lg border border-red-200/50 hover:bg-red-500 hover:text-white text-red-500 text-[10px] font-black flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                           >
+                              🗑️ সমস্ত স্মৃতি মুছে ফেলুন
+                           </button>
+                        </div>
+                     </div>
+                  )}
+
+               </div>
+
+               {/* Admin Footer bar */}
+               <div className={cn("p-3 border-t flex justify-between items-center shrink-0",
+                  theme === "dark" ? "bg-slate-950/40 border-slate-800" : "bg-[#fcfdfe] border-gray-150"
+               )}>
+                  <span className="text-[8px] font-black tracking-widest text-[#f97316] uppercase animate-pulse">
+                     ● HUMAIRA CORE INTEL
+                  </span>
+                  <button 
+                     type="button"
+                     onClick={() => {
+                        setCurrentView("chat");
+                        if (soundEnabled) playSweetChime();
+                     }}
+                     className="px-4 py-1.5 bg-gradient-to-r from-orange-500 to-[#f97316] hover:brightness-105 active:scale-95 text-white font-extrabold text-[10px] transition-all shadow-md cursor-pointer flex items-center gap-1 rounded-xl"
+                  >
+                     <span>সংরক্ষণ ও বন্ধ করুন</span>
+                     <Check className="w-3 h-3 stroke-[2.5]" />
+                  </button>
+               </div>
             </div>
-         )}
-      </AnimatePresence>
+         </div>
+      )}
 
       {/* Drawer Overlay */}
       <AnimatePresence>
