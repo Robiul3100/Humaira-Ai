@@ -333,7 +333,33 @@ export default function App() {
   });
   const [currentModel, setCurrentModel] = useState(MODELS[0]);
   
-  const [chats, setChats] = useState<Chat[]>([]);
+  const [chats, setChats] = useState<Chat[]>(() => {
+    try {
+      const saved = localStorage.getItem("localChats_humaira");
+      if (saved) {
+        return JSON.parse(saved).map((c: any) => ({
+          ...c,
+          createdAt: new Date(c.createdAt || Date.now()),
+          updatedAt: new Date(c.updatedAt || Date.now()),
+          messages: (c.messages || []).map((m: any) => ({
+            ...m,
+            timestamp: new Date(m.timestamp || Date.now())
+          }))
+        }));
+      }
+    } catch (e) {
+      console.error("Failed to load local chats", e);
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("localChats_humaira", JSON.stringify(chats));
+    } catch (e) {
+      console.error("Failed to save local chats", e);
+    }
+  }, [chats]);
   
   // Real-time sentiment analyzer for Recharts dashboard visualization
   const analyzeSentiment = () => {
@@ -575,43 +601,48 @@ export default function App() {
     }, 2000);
   };
   
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  const [completedOnboarding, setCompletedOnboarding] = useState(() => {
-    try {
-      return localStorage.getItem("completedOnboarding") === "true";
-    } catch (_) {
-      return false;
-    }
+  const [firebaseUser, setFirebaseUser] = useState<any>({ 
+    uid: "local_user", 
+    displayName: "অয়ন", 
+    email: "local@humaira.ai", 
+    photoURL: "https://api.dicebear.com/7.x/adventurer/svg?seed=Jack" 
   });
+  const [completedOnboarding, setCompletedOnboarding] = useState(true);
   const [onboardingStep, setOnboardingStep] = useState<"avatar" | "chatbotName">("avatar");
-  const [selectedOnboardingPic, setSelectedOnboardingPic] = useState("");
+  const [selectedOnboardingPic, setSelectedOnboardingPic] = useState("https://api.dicebear.com/7.x/adventurer/svg?seed=Jack");
   const [typedBotName, setTypedBotName] = useState("হুমায়রা এআই");
   const [typedUserName, setTypedUserName] = useState(() => {
     try {
-      return localStorage.getItem("userName") || "";
+      return localStorage.getItem("userName") || "অয়ন";
     } catch (_) {
-      return "";
+      return "অয়ন";
     }
   });
-  const [userRole, setUserRole] = useState<"user"|"admin">("user");
+  const [userRole, setUserRole] = useState<"user"|"admin">("admin");
   const [userName, setUserName] = useState(() => {
     try {
-      return localStorage.getItem("userName") || "Ayan";
+      return localStorage.getItem("userName") || "অয়ন";
     } catch (_) {
-      return "Ayan";
+      return "অয়ন";
     }
   });
   const [userProfilePic, setUserProfilePic] = useState(() => {
     try {
-      return localStorage.getItem("userProfilePic") || "";
+      return localStorage.getItem("userProfilePic") || "https://api.dicebear.com/7.x/adventurer/svg?seed=Jack";
     } catch (_) {
-      return "";
+      return "https://api.dicebear.com/7.x/adventurer/svg?seed=Jack";
     }
   });
   const [aiAvatarSeed, setAiAvatarSeed] = useState(() => {
     return localStorage.getItem("aiAvatarSeed") || "Humaira";
   });
-  const [xp, setXp] = useState(1250);
+  const [xp, setXp] = useState(() => {
+    try {
+      return Number(localStorage.getItem("xp") || "1250");
+    } catch (_) {
+      return 1250;
+    }
+  });
   const [loveLanguage, setLoveLanguage] = useState(() => {
     try {
       return localStorage.getItem("loveLanguage") || "Words of Affirmation";
@@ -626,8 +657,21 @@ export default function App() {
       return "";
     }
   });
-  const [streak, setStreak] = useState(1);
-  const [achievements, setAchievements] = useState<string[]>([]);
+  const [streak, setStreak] = useState(() => {
+    try {
+      return Number(localStorage.getItem("streak") || "1");
+    } catch (_) {
+      return 1;
+    }
+  });
+  const [achievements, setAchievements] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("achievements");
+      return saved ? JSON.parse(saved) : [];
+    } catch (_) {
+      return [];
+    }
+  });
 
   // Profile Field Save Helper
   const handleUpdateProfileField = (field: string, val: any) => {
@@ -775,6 +819,7 @@ export default function App() {
       ISLAMIC: "You are Humaira (হুমায়রা), a pious, respectful, and wise sister who provides guidance based on the Quran and authentic Sunnah in beautiful, polite, and calm Bengali. Use greetings like 'আসসালামু আলাইকুম' and start with positive vibes. Give authentic Islamic references, remind the user of rewards for good deeds, and speak with extreme humility and spiritual warmth."
     };
   });
+
   const [aiCreativity, setAiCreativity] = useState(() => {
     return Number(localStorage.getItem("aiCreativity") || "0.7");
   });
@@ -844,12 +889,14 @@ export default function App() {
 
         const parsedChats: Chat[] = importedData.map(c => ({
           ...c,
-          createdAt: new Date(c.createdAt || Date.now()),
-          updatedAt: new Date(c.updatedAt || Date.now()),
-          messages: c.messages.map((m: any) => ({
+          id: c.id || Math.random().toString(36).substring(7),
+          title: c.title || "চ্যাট হিস্ট্রি",
+          messages: (c.messages || []).map((m: any) => ({
             ...m,
             timestamp: new Date(m.timestamp || Date.now())
-          }))
+          })),
+          createdAt: new Date(c.createdAt || Date.now()),
+          updatedAt: new Date(c.updatedAt || Date.now())
         }));
 
         if (confirm(`আপনি কি এই ফাইলের ${parsedChats.length} টি চ্যাট হিস্ট্রি রিকভার করতে চান? এটি আপনার বর্তমান চ্যাট হিস্ট্রি রিসেট বা মার্জ করবে।`)) {
@@ -866,12 +913,6 @@ export default function App() {
             });
             return newChats;
           });
-
-          if (firebaseUser) {
-            for (const chat of parsedChats) {
-              await syncChatData(chat);
-            }
-          }
 
           if (parsedChats.length > 0) {
             setActiveChatId(parsedChats[0].id);
@@ -903,13 +944,13 @@ export default function App() {
     if (activeChatId) {
       const currentChat = chats.find(c => c.id === activeChatId);
       if (currentChat && currentChat.mode) {
-        setMode(currentChat.mode);
-        localStorage.setItem("selectedMode", currentChat.mode);
+         setMode(currentChat.mode);
+         localStorage.setItem("selectedMode", currentChat.mode);
       }
     } else {
       const savedMode = localStorage.getItem("selectedMode");
       if (savedMode && Object.keys(MODES).includes(savedMode)) {
-        setMode(savedMode as Mode);
+         setMode(savedMode as Mode);
       }
     }
   }, [activeChatId, chats]);
@@ -919,13 +960,11 @@ export default function App() {
     if (mode) {
       localStorage.setItem("selectedMode", mode);
     }
-    // Update active chat's mode in memory and sync with Firestore if applicable
+    // Update active chat's mode in memory
     if (activeChatId && mode) {
       setChats(prev => prev.map(c => {
          if (c.id === activeChatId && c.mode !== mode) {
-            const updatedChat = { ...c, mode, updatedAt: new Date() };
-            syncChatData(updatedChat);
-            return updatedChat;
+            return { ...c, mode, updatedAt: new Date() };
          }
          return c;
       }));
@@ -949,141 +988,24 @@ export default function App() {
   const handleAiAvatarChange = (seed: string) => {
     setAiAvatarSeed(seed);
     localStorage.setItem("aiAvatarSeed", seed);
-    if (firebaseUser) {
-      syncProfile("aiAvatarSeed", seed);
-    }
   };
 
-  // Auth & Sync
+  // Auth & Sync - clean, local-first
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setFirebaseUser(user);
-      if (user) {
-        try {
-          let userDoc;
-          try {
-            userDoc = await getDoc(doc(db, "users", user.uid));
-          } catch (error) {
-            console.warn("Firestore user read failed, enabling local/offline setup:", error);
-            try {
-              handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
-            } catch (_) {}
-            // Fallback default local setup to let the user in
-            setUserRole("user");
-            setUserName(user.displayName || "Ayan");
-            setUserProfilePic(user.photoURL || "");
-            setCompletedOnboarding(false);
-            localStorage.setItem("completedOnboarding", "false");
-            setBotName("হুমায়রা এআই");
-            localStorage.setItem("botName", "হুমায়রা এআই");
-            setIsLoaded(true);
-            return;
-          }
-          if (userDoc && userDoc.exists()) {
-            const data = userDoc.data();
-            const loadedName = data.name || user.displayName || "Ayan";
-            setUserRole(data.role || "user");
-            setUserName(loadedName);
-            setTypedUserName(loadedName);
-            setUserProfilePic(data.photoURL || user.photoURL || "");
-            if (data.aiAvatarSeed) {
-              setAiAvatarSeed(data.aiAvatarSeed);
-              localStorage.setItem("aiAvatarSeed", data.aiAvatarSeed);
-            }
-            if (data.botName) {
-              setBotName(data.botName);
-              localStorage.setItem("botName", data.botName);
-            }
-            const onboarded = data.completedOnboarding === true;
-            setCompletedOnboarding(onboarded);
-            localStorage.setItem("completedOnboarding", String(onboarded));
-            setXp(data.xp || 1250);
-            setLoveLanguage(data.loveLanguage || "Words of Affirmation");
-            setAnniversaryDate(data.anniversaryDate || "");
-            setStreak(data.streak || 1);
-            setAchievements(data.achievements || []);
-          } else {
-            const isAdmin = user.email === 'hmrobiulislam75@gmail.com' && user.emailVerified;
-            const newRole = isAdmin ? "admin" : "user";
-            const defaultName = user.displayName || "Ayan";
-            try {
-              await setDoc(doc(db, "users", user.uid), {
-                role: newRole,
-                name: defaultName,
-                email: user.email,
-                photoURL: user.photoURL || "",
-                xp: 1250,
-                loveLanguage: "Words of Affirmation",
-                anniversaryDate: "",
-                streak: 1,
-                achievements: [],
-                aiAvatarSeed: "Humaira",
-                botName: "হুমায়রা এআই",
-                completedOnboarding: false
-              });
-            } catch (error) {
-              console.warn("Firestore user setDoc failed, enabling local/offline profile parameters:", error);
-              try {
-                handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}`);
-              } catch (_) {}
-            }
-            setUserRole(newRole);
-            setUserName(defaultName);
-            setTypedUserName(defaultName);
-            setUserProfilePic(user.photoURL || "");
-            setCompletedOnboarding(false);
-            localStorage.setItem("completedOnboarding", "false");
-            setBotName("হুমায়রা এআই");
-            localStorage.setItem("botName", "হুমায়রা এআই");
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      } else {
-        setCompletedOnboarding(false);
-        localStorage.setItem("completedOnboarding", "false");
-      }
-      setIsLoaded(true);
-    });
-
-    return () => unsubscribe();
+    setIsLoaded(true);
+    setCompletedOnboarding(true);
   }, []);
 
-  useEffect(() => {
-    if(!firebaseUser) return;
-    const unsub = onSnapshot(collection(db, "users", firebaseUser.uid, "chats"), (snapshot) => {
-       if (!snapshot.empty) {
-           const loadedChats: Chat[] = [];
-           snapshot.forEach(d => {
-               const data = d.data();
-               loadedChats.push({
-                   ...data,
-                   createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
-                   updatedAt: data.updatedAt ? new Date(data.updatedAt) : new Date(),
-                   messages: (data.messages || []).map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }))
-               } as Chat);
-           });
-           loadedChats.sort((a,b) => b.updatedAt.getTime() - a.updatedAt.getTime());
-           setChats(loadedChats);
-       } else {
-           setChats([]);
-       }
-    }, (error) => {
-       handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}/chats`);
-    });
-    return () => unsub();
-  }, [firebaseUser]);
+  const handleLogin = async () => {};
+  const handleLogout = async () => {};
 
-  const handleLogin = async () => signInWithPopup(auth, googleProvider);
-  const handleLogout = async () => signOut(auth);
-
-  const ONBOARDING_AVATARS = useMemo(() => [
+  const ONBOARDING_AVATARS = [
     "https://api.dicebear.com/7.x/adventurer/svg?seed=Felix",
     "https://api.dicebear.com/7.x/adventurer/svg?seed=Aneka",
     "https://api.dicebear.com/7.x/adventurer/svg?seed=Jack",
     "https://api.dicebear.com/7.x/adventurer/svg?seed=Sophia",
     "https://api.dicebear.com/7.x/adventurer/svg?seed=Bob"
-  ], []);
+  ];
 
   const formatWithBotName = (text: string) => {
     if (!text) return "";
@@ -1096,85 +1018,23 @@ export default function App() {
   };
 
   const handleCompleteOnboarding = async () => {
-    if (!firebaseUser) return;
-    setSaveStatus("saving");
-    let isCloudSynced = false;
-    const finalUserName = typedUserName.trim() || firebaseUser.displayName || "Ayan";
-    try {
-      await updateDoc(doc(db, "users", firebaseUser.uid), {
-        name: finalUserName,
-        photoURL: selectedOnboardingPic,
-        botName: typedBotName,
-        completedOnboarding: true
-      });
-      isCloudSynced = true;
-    } catch (error) {
-      console.warn("Firestore onboarding update failed, continuing in local mode:", error);
-      try {
-        handleFirestoreError(error, OperationType.UPDATE, `users/${firebaseUser.uid}`);
-      } catch (_) {}
-    }
-
-    // Always update client state so the user isn't stuck!
-    setUserName(finalUserName);
-    localStorage.setItem("userName", finalUserName);
-    setUserProfilePic(selectedOnboardingPic);
-    localStorage.setItem("userProfilePic", selectedOnboardingPic);
-    setBotName(typedBotName);
-    localStorage.setItem("botName", typedBotName);
     setCompletedOnboarding(true);
     localStorage.setItem("completedOnboarding", "true");
-
-    if (isCloudSynced) {
-      setSaveStatus("synced");
-      showToast("অনবোর্ডিং সফলভাবে সম্পন্ন হয়েছে ও ক্লাউডে সিঙ্ক হয়েছে! 🎉", "success");
-    } else {
-      setSaveStatus("local");
-      showToast("অনবোর্ডিং সম্পন্ন হয়েছে (লোকাল ডিভাইস মোড)! 💾", "info");
-    }
   };
 
-  useEffect(() => {
-    if (firebaseUser && !completedOnboarding) {
-      setSelectedOnboardingPic(userProfilePic || firebaseUser.photoURL || "");
-      setTypedBotName(botName || "হুমায়রা এআই");
-      setTypedUserName(userName || firebaseUser.displayName || "");
-    }
-  }, [firebaseUser, completedOnboarding, userProfilePic, botName, userName, ONBOARDING_AVATARS]);
-
   const syncProfile = async (field: string, value: any) => {
-    if (!firebaseUser) {
-      setSaveStatus("local");
-      showToast("তথ্য ডিভাইসে সংরক্ষিত হয়েছে! 💾", "info");
-      return;
-    }
-    setSaveStatus("saving");
-    try { 
-      await updateDoc(doc(db, "users", firebaseUser.uid), { [field]: value }); 
-      setSaveStatus("synced");
-      showToast("ক্লাউড সিঙ্ক্রোনাইজেশন সম্পন্ন! ☁️", "success");
-    } catch (e) {
-      setSaveStatus("local");
-      showToast("ক্লাউড ব্যাকআপ ব্যর্থ হয়েছে!", "error");
-      handleFirestoreError(e, OperationType.UPDATE, `users/${firebaseUser.uid}`);
-    }
+    try {
+      if (typeof value === "object") {
+        localStorage.setItem(field, JSON.stringify(value));
+      } else {
+        localStorage.setItem(field, String(value));
+      }
+    } catch (_) {}
+    setSaveStatus("local");
   };
 
   const syncChatData = async (chat: Chat) => {
-    if (!auth.currentUser) return;
-    try {
-      const fbChat = {
-         ...chat,
-         createdAt: chat.createdAt.toISOString(),
-         updatedAt: chat.updatedAt.toISOString(),
-         messages: chat.messages.map(m => ({ ...m, timestamp: m.timestamp.toISOString() }))
-      };
-      await setDoc(doc(db, "users", auth.currentUser.uid, "chats", chat.id), fbChat);
-    } catch (e) {
-      try {
-        handleFirestoreError(e, OperationType.WRITE, `users/${auth.currentUser.uid}/chats/${chat.id}`);
-      } catch (_) {}
-    }
+    // Local state already updates auto-saves automatically
   };
 
   const activeChat = useMemo(() => chats.find(c => c.id === activeChatId) || null, [chats, activeChatId]);
@@ -3015,7 +2875,7 @@ export default function App() {
                      <div className={cn("rounded-xl p-2 flex items-center gap-2.5 border transition-all", 
                         theme === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-100"
                      )}>
-                        {firebaseUser ? (
+                        {true ? (
                            <>
                               <div className="w-8 h-8 rounded-full overflow-hidden bg-orange-100 border-2 border-orange-400 p-0.5 shadow-xs shrink-0 relative">
                                  {userProfilePic ? (
@@ -3028,9 +2888,9 @@ export default function App() {
                               <div className="flex flex-col flex-1 min-w-0">
                                  <span className="font-extrabold text-xs text-slate-800 dark:text-slate-100 truncate flex items-center gap-1.5 leading-none">
                                     {userName}
-                                    <span className="text-[7.5px] bg-green-100 dark:bg-green-950/40 text-green-600 dark:text-green-400 px-1 py-0.2 rounded-full font-black scale-90 origin-left border border-green-200/50 dark:border-green-800/30 uppercase">ONLINE</span>
+
                                  </span>
-                                 <span className="font-medium text-[8.5px] text-slate-400 dark:text-slate-500 truncate tracking-tight">{firebaseUser.email}</span>
+                                 <span className="font-medium text-[8.5px] text-slate-400 dark:text-slate-500 truncate tracking-tight">অফলাইন প্রোফাইল 💾</span>
                               </div>
                            </>
                         ) : (
@@ -3071,7 +2931,7 @@ export default function App() {
                            {theme === "light" ? <Moon className="w-3.5 h-3.5 text-indigo-500"/> : <Sun className="w-3.5 h-3.5 text-amber-500"/>}
                            {theme === "light" ? "ডার্ক মোড" : "লাইট মোড"}
                         </button>
-                        {firebaseUser && (
+                        {false && (
                            <button 
                               onClick={() => { handleLogout(); setIsSidebarOpen(false); if (soundEnabled) playSweetChime(); }} 
                               className={cn("flex-1 py-1.5 rounded-xl border flex items-center justify-center gap-1.5 font-bold text-xs shadow-xs transition-colors cursor-pointer min-h-[34px]",
