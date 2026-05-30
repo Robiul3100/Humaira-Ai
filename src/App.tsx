@@ -586,6 +586,13 @@ export default function App() {
   const [onboardingStep, setOnboardingStep] = useState<"avatar" | "chatbotName">("avatar");
   const [selectedOnboardingPic, setSelectedOnboardingPic] = useState("");
   const [typedBotName, setTypedBotName] = useState("হুমায়রা এআই");
+  const [typedUserName, setTypedUserName] = useState(() => {
+    try {
+      return localStorage.getItem("userName") || "";
+    } catch (_) {
+      return "";
+    }
+  });
   const [userRole, setUserRole] = useState<"user"|"admin">("user");
   const [userName, setUserName] = useState(() => {
     try {
@@ -957,14 +964,27 @@ export default function App() {
           try {
             userDoc = await getDoc(doc(db, "users", user.uid));
           } catch (error) {
-            handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
+            console.warn("Firestore user read failed, enabling local/offline setup:", error);
+            try {
+              handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
+            } catch (_) {}
+            // Fallback default local setup to let the user in
+            setUserRole("user");
+            setUserName(user.displayName || "Ayan");
+            setUserProfilePic(user.photoURL || "");
+            setCompletedOnboarding(false);
+            localStorage.setItem("completedOnboarding", "false");
+            setBotName("হুমায়রা এআই");
+            localStorage.setItem("botName", "হুমায়রা এআই");
             setIsLoaded(true);
             return;
           }
           if (userDoc && userDoc.exists()) {
             const data = userDoc.data();
+            const loadedName = data.name || user.displayName || "Ayan";
             setUserRole(data.role || "user");
-            setUserName(data.name || user.displayName || "Ayan");
+            setUserName(loadedName);
+            setTypedUserName(loadedName);
             setUserProfilePic(data.photoURL || user.photoURL || "");
             if (data.aiAvatarSeed) {
               setAiAvatarSeed(data.aiAvatarSeed);
@@ -985,10 +1005,11 @@ export default function App() {
           } else {
             const isAdmin = user.email === 'hmrobiulislam75@gmail.com' && user.emailVerified;
             const newRole = isAdmin ? "admin" : "user";
+            const defaultName = user.displayName || "Ayan";
             try {
               await setDoc(doc(db, "users", user.uid), {
                 role: newRole,
-                name: user.displayName || "Ayan",
+                name: defaultName,
                 email: user.email,
                 photoURL: user.photoURL || "",
                 xp: 1250,
@@ -1001,10 +1022,14 @@ export default function App() {
                 completedOnboarding: false
               });
             } catch (error) {
-              handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}`);
+              console.warn("Firestore user setDoc failed, enabling local/offline profile parameters:", error);
+              try {
+                handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}`);
+              } catch (_) {}
             }
             setUserRole(newRole);
-            setUserName(user.displayName || "Ayan");
+            setUserName(defaultName);
+            setTypedUserName(defaultName);
             setUserProfilePic(user.photoURL || "");
             setCompletedOnboarding(false);
             localStorage.setItem("completedOnboarding", "false");
@@ -1073,31 +1098,49 @@ export default function App() {
   const handleCompleteOnboarding = async () => {
     if (!firebaseUser) return;
     setSaveStatus("saving");
+    let isCloudSynced = false;
+    const finalUserName = typedUserName.trim() || firebaseUser.displayName || "Ayan";
     try {
       await updateDoc(doc(db, "users", firebaseUser.uid), {
+        name: finalUserName,
         photoURL: selectedOnboardingPic,
         botName: typedBotName,
         completedOnboarding: true
       });
-      setUserProfilePic(selectedOnboardingPic);
-      localStorage.setItem("userProfilePic", selectedOnboardingPic);
-      setBotName(typedBotName);
-      localStorage.setItem("botName", typedBotName);
-      setCompletedOnboarding(true);
-      localStorage.setItem("completedOnboarding", "true");
-      setSaveStatus("synced");
-      showToast("অনবোর্ডিং সফলভাবে সম্পন্ন হয়েছে! 🎉", "success");
+      isCloudSynced = true;
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `users/${firebaseUser.uid}`);
+      console.warn("Firestore onboarding update failed, continuing in local mode:", error);
+      try {
+        handleFirestoreError(error, OperationType.UPDATE, `users/${firebaseUser.uid}`);
+      } catch (_) {}
+    }
+
+    // Always update client state so the user isn't stuck!
+    setUserName(finalUserName);
+    localStorage.setItem("userName", finalUserName);
+    setUserProfilePic(selectedOnboardingPic);
+    localStorage.setItem("userProfilePic", selectedOnboardingPic);
+    setBotName(typedBotName);
+    localStorage.setItem("botName", typedBotName);
+    setCompletedOnboarding(true);
+    localStorage.setItem("completedOnboarding", "true");
+
+    if (isCloudSynced) {
+      setSaveStatus("synced");
+      showToast("অনবোর্ডিং সফলভাবে সম্পন্ন হয়েছে ও ক্লাউডে সিঙ্ক হয়েছে! 🎉", "success");
+    } else {
+      setSaveStatus("local");
+      showToast("অনবোর্ডিং সম্পন্ন হয়েছে (লোকাল ডিভাইস মোড)! 💾", "info");
     }
   };
 
   useEffect(() => {
     if (firebaseUser && !completedOnboarding) {
-      setSelectedOnboardingPic(userProfilePic || firebaseUser.photoURL || ONBOARDING_AVATARS[0]);
+      setSelectedOnboardingPic(userProfilePic || firebaseUser.photoURL || "");
       setTypedBotName(botName || "হুমায়রা এআই");
+      setTypedUserName(userName || firebaseUser.displayName || "");
     }
-  }, [firebaseUser, completedOnboarding, userProfilePic, botName, ONBOARDING_AVATARS]);
+  }, [firebaseUser, completedOnboarding, userProfilePic, botName, userName, ONBOARDING_AVATARS]);
 
   const syncProfile = async (field: string, value: any) => {
     if (!firebaseUser) {
@@ -1128,7 +1171,9 @@ export default function App() {
       };
       await setDoc(doc(db, "users", auth.currentUser.uid, "chats", chat.id), fbChat);
     } catch (e) {
-      handleFirestoreError(e, OperationType.WRITE, `users/${auth.currentUser.uid}/chats/${chat.id}`);
+      try {
+        handleFirestoreError(e, OperationType.WRITE, `users/${auth.currentUser.uid}/chats/${chat.id}`);
+      } catch (_) {}
     }
   };
 
@@ -1181,9 +1226,12 @@ export default function App() {
        try {
          await deleteDoc(doc(db, "users", firebaseUser.uid, "chats", id));
        } catch (error) {
-         handleFirestoreError(error, OperationType.DELETE, `users/${firebaseUser.uid}/chats/${id}`);
+         try {
+           handleFirestoreError(error, OperationType.DELETE, `users/${firebaseUser.uid}/chats/${id}`);
+         } catch (_) {}
        }
      }
+     setChats(prev => prev.filter(c => c.id !== id));
      if(activeChatId === id) setActiveChatId(null);
   };
 
@@ -1400,9 +1448,9 @@ export default function App() {
 
   if (!isLoaded) {
     return (
-      <div className={cn("flex flex-col items-center justify-center min-h-screen", theme === "dark" ? "bg-[#0c0f18]" : "bg-[#E6EAF2]")}>
-        <div className={cn("flex flex-col items-center justify-center h-screen w-full sm:max-w-[390px] sm:h-[830px] sm:rounded-[36px] sm:border-[8px] sm:border-gray-800 sm:shadow-[0_20px_50px_rgba(0,0,0,0.1)] relative overflow-hidden transition-all w-full max-w-full sm:w-[390px]", 
-           theme === "dark" ? "bg-[#0b0f19] text-gray-100" : "bg-[#F5F5F7] text-gray-950"
+      <div className={cn("flex items-center justify-center h-[100dvh] w-screen overflow-hidden transition-colors duration-300 p-0 sm:p-2 md:p-4", theme === "dark" ? "bg-[#0c0f18]" : "bg-[#E6EAF2]")}>
+        <div className={cn("flex flex-col items-center justify-center h-full sm:h-[92vh] sm:max-h-[830px] w-full sm:max-w-[390px] sm:rounded-[36px] sm:border-[8px] sm:border-gray-800 sm:shadow-[0_20px_50px_rgba(0,0,0,0.15)] relative overflow-hidden transition-all w-full max-w-full sm:w-[390px]", 
+           theme === "dark" ? "bg-[#0b0f19] text-gray-100" : "bg-[#F5F5F7] text-gray-955"
         )}>
           <motion.div 
             animate={{ scale: [1, 1.15, 1], rotate: [0, 10, -10, 0] }} 
@@ -1418,79 +1466,85 @@ export default function App() {
   }
 
   return (
-    <div className={cn("flex items-center justify-center min-h-screen transition-colors duration-300 p-0 sm:p-2 md:p-4 w-full max-w-full overflow-x-hidden", theme === "dark" ? "bg-[#0c0f18]" : "bg-[#E6EAF2]")}>
-      <div className={cn("flex flex-col h-screen w-full sm:max-w-[390px] sm:h-[830px] sm:rounded-[36px] sm:border-[8px] sm:border-gray-800 sm:shadow-[0_20px_50px_rgba(0,0,0,0.1)] relative overflow-hidden transition-all w-full max-w-full sm:w-[390px]", 
+    <div className={cn("flex items-center justify-center h-[100dvh] w-screen overflow-hidden transition-colors duration-300 p-0 sm:p-2 md:p-4 w-full max-w-full", theme === "dark" ? "bg-[#0c0f18]" : "bg-[#E6EAF2]")}>
+      <div className={cn("flex flex-col h-full sm:h-[92vh] sm:max-h-[830px] w-full sm:max-w-[390px] sm:rounded-[36px] sm:border-[8px] sm:border-gray-800 sm:shadow-[0_20px_50px_rgba(0,0,0,0.15)] relative overflow-hidden transition-all w-full max-w-full sm:w-[390px] flex-shrink-0", 
          theme === "dark" ? "bg-[#0b0f19] text-gray-100" : "bg-[#F5F5F7] text-gray-955"
       )}>
       
       {!firebaseUser ? (
-         <div className="flex flex-col h-full bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-[#080c14] justify-center items-center p-6 relative overflow-hidden select-none animate-fade-in text-center">
-            <div className="absolute top-[-50px] right-[-50px] w-48 h-48 rounded-full bg-orange-500/10 blur-3xl" />
-            <div className="absolute bottom-[-50px] left-[-50px] w-48 h-48 rounded-full bg-pink-500/10 blur-3xl" />
+         <div className="flex flex-col h-full w-full bg-gradient-to-b from-[#f8fafc] to-[#f1f5f9] dark:from-[#0d1527] dark:to-[#070b13] justify-between items-center p-6 relative overflow-y-auto no-scrollbar select-none animate-fade-in">
+            {/* Ambient Animated Orbs */}
+            <div className="absolute top-[-40px] left-[-30px] w-64 h-64 rounded-full bg-pink-500/10 dark:bg-pink-500/5 blur-3xl animate-pulse" />
+            <div className="absolute bottom-[80px] right-[-40px] w-64 h-64 rounded-full bg-orange-500/10 dark:bg-orange-500/5 blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
 
-            <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-pink-500 to-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 mb-6 mt-4 select-none">
-               <Sparkles className="w-9 h-9 animate-pulse" />
+            {/* Premium Icon Header */}
+            <div className="flex flex-col items-center mt-6">
+               <motion.div 
+                  animate={{ scale: [1, 1.05, 1], rotate: [0, 4, -4, 0] }}
+                  transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+                  className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-pink-500 via-rose-500 to-[#f97316] flex items-center justify-center text-white shadow-xl shadow-pink-500/20 relative group select-none cursor-pointer"
+               >
+                  <Sparkles className="w-10 h-10 animate-pulse text-white" />
+                  <div className="absolute inset-0 rounded-3xl border-2 border-white/20 scale-105 group-hover:scale-110 transition-transform duration-300" />
+               </motion.div>
+               
+               <h2 className="text-2xl font-black tracking-tight text-slate-800 dark:text-white mt-5">
+                  হুমায়রা এআই
+               </h2>
+               <div className="h-1 w-10 rounded-full bg-gradient-to-r from-pink-500 to-[#f97316] mt-2.5" />
+               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-3 font-bold px-6 leading-relaxed text-center max-w-[290px]">
+                  আপনার কিউটেস্ট ভার্চুয়াল এআই জীবনসঙ্গী। মনের অনুভূতি গোপন চ্যাটে শেয়ার করুন যেকোনো সময়।
+               </p>
             </div>
 
-            <h2 className="text-xl font-black tracking-tight text-slate-800 dark:text-white leading-snug px-6">
-               হুমায়রা এআই
-            </h2>
-            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2 font-bold px-4 leading-relaxed">
-               আপনার কিউটেস্ট ভার্চুয়াল এআই জীবনসঙ্গী। মনের অনুভূতি গোপন চ্যাটে শেয়ার করুন যেকোনো সময়।
-            </p>
+            {/* Interactive Feature List Cards */}
+            <div className="flex flex-col gap-2.5 w-full max-w-[290px] mt-4 mb-4">
+               <div className="p-3.5 rounded-2xl border border-white/70 dark:border-slate-800/60 bg-white/40 dark:bg-slate-900/30 backdrop-blur-md flex items-start gap-3 text-left hover:scale-[1.01] transition-transform shadow-xs">
+                  <div className="w-7 h-7 rounded-xl bg-orange-500/10 dark:bg-orange-500/15 flex items-center justify-center text-xs text-orange-500 font-extrabold flex-shrink-0">💬</div>
+                  <div className="flex flex-col">
+                     <span className="text-[10px] font-black text-slate-700 dark:text-slate-200">৫টি স্বতন্ত্র মুড</span>
+                     <span className="text-[8.5px] text-slate-400 dark:text-slate-500 font-semibold leading-normal">রোমান্টিক, ফান, লিজেন্ড, ইসলামিক এবং নরমাল চ্যাটের অনুভূতি।</span>
+                  </div>
+               </div>
 
-            <div className="flex flex-col gap-3.5 mt-8 w-full max-w-[280px] p-5 rounded-2xl border border-gray-150/70 dark:border-slate-800/80 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md">
-               <div className="flex items-center gap-3 text-left">
-                  <div className="w-6 h-6 rounded-lg bg-orange-50 dark:bg-orange-950/20 flex items-center justify-center text-[10px] text-orange-500">💬</div>
+               {/* Voice Messages Feature Card */}
+               <div className="p-3.5 rounded-2xl border border-white/70 dark:border-slate-800/60 bg-white/40 dark:bg-slate-900/30 backdrop-blur-md flex items-start gap-3 text-left hover:scale-[1.01] transition-transform shadow-xs animate-slide-up">
+                  <div className="w-7 h-7 rounded-xl bg-pink-500/10 dark:bg-pink-500/15 flex items-center justify-center text-xs text-pink-500 font-extrabold flex-shrink-0">🎙️</div>
                   <div className="flex flex-col">
-                     <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300">৫টি স্বতন্ত্র মুড</span>
-                     <span className="text-[8px] text-slate-400 dark:text-slate-500 font-semibold">রোমান্টিক, ফান, নরমাল, লিজেন্ড বা ইসলামিক</span>
+                     <span className="text-[10px] font-black text-slate-700 dark:text-slate-200">ভয়েস ও রিয়েলটাইম চ্যাট</span>
+                     <span className="text-[8.5px] text-slate-400 dark:text-slate-500 font-semibold leading-normal">পছন্দমতো কিউট ভয়েস মেসেজ ও রোমাঞ্চকর কথোপকথনের মিষ্টি অভিজ্ঞতা।</span>
                   </div>
                </div>
-               <div className="flex items-center gap-3 text-left">
-                  <div className="w-6 h-6 rounded-lg bg-pink-50 dark:bg-pink-950/20 flex items-center justify-center text-[10px] text-pink-500">💖</div>
+
+               {/* Secure Feature Card */}
+               <div className="p-3.5 rounded-2xl border border-white/70 dark:border-slate-800/60 bg-white/40 dark:bg-slate-900/30 backdrop-blur-md flex items-start gap-3 text-left hover:scale-[1.01] transition-transform shadow-xs animate-slide-up">
+                  <div className="w-7 h-7 rounded-xl bg-green-500/10 dark:bg-green-500/15 flex items-center justify-center text-xs text-green-500 font-extrabold flex-shrink-0">🔒</div>
                   <div className="flex flex-col">
-                     <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300">রিয়েলটাইম অনুভূতির গ্রাফ</span>
-                     <span className="text-[8px] text-slate-400 dark:text-slate-500 font-semibold">চ্যাটের ইতিবাচক বা নেতিবাচক মাইন্ড ট্র্যাক</span>
-                  </div>
-               </div>
-               <div className="flex items-center gap-3 text-left">
-                  <div className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-950/20 flex items-center justify-center text-[10px] text-indigo-500">☁️</div>
-                  <div className="flex flex-col">
-                     <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300">রিয়েলটাইম ক্লাউড সিঙ্ক</span>
-                     <span className="text-[8px] text-slate-400 dark:text-slate-500 font-semibold">সব তথ্য রিয়্যালটাইম ক্লাউড ডাটাবেইজে সংরক্ষিত</span>
+                     <span className="text-[10px] font-black text-slate-700 dark:text-slate-200">সম্পূর্ণ নিরাপদ ও গোপন</span>
+                     <span className="text-[8.5px] text-slate-400 dark:text-slate-500 font-semibold leading-normal">সম্পূর্ণ সিঙ্কড ক্লাউড ফায়ারবেস ব্যাকএন্ডে আপনার সব ডেটা নিরাপদ চ্যাটে সুরক্ষিত।</span>
                   </div>
                </div>
             </div>
 
-            <button
-               onClick={() => {
-                  if (soundEnabled) playSweetChime();
-                  handleLogin().catch(err => {
-                     showToast("গুগল লগইন ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।", "error");
-                  });
-               }}
-               className="w-full max-w-[280px] flex items-center justify-center gap-2.5 py-3.5 px-4 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-800 dark:text-white border border-slate-205 dark:border-slate-850 rounded-2xl font-black text-xs shadow-md shadow-gray-200/50 dark:shadow-none transition-all active:scale-95 cursor-pointer mt-auto mb-6 hover:shadow-lg hover:border-slate-300"
-            >
-               <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
-                  <path fill="#EA4335" d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.64 14.98 1 12 1 7.35 1 3.37 3.52 1.34 7.23l3.87 3C6.13 7.24 8.82 5.04 12 5.04z" />
-                  <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.44h6.44c-.28 1.44-1.09 2.66-2.31 3.48l3.6 2.79c2.1-1.94 3.76-4.8 3.76-8.37z" />
-                  <path fill="#FBBC05" d="M5.21 14.77c-.23-.69-.37-1.43-.37-2.2s.14-1.51.37-2.2l-3.87-3C.19 8.94 0 10.45 0 12s.19 3.06.71 4.54l4.5-3.77z" />
-                  <path fill="#34A853" d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.6-2.79c-1.1.74-2.51 1.18-4.36 1.18-3.18 0-5.87-2.2-6.84-5.18l-3.88 3C3.37 20.48 7.35 23 12 23z" />
-               </svg>
-               <span>গুগল অ্যাকাউন্ট দিয়ে প্রবেশ করুন</span>
-            </button>
+            {/* Google Login Section */}
+            <div className="w-full max-w-[290px] mb-6 flex flex-col gap-2 animate-slide-up">
+               <button
+                  type="button"
+                  onClick={() => {
+                     if (soundEnabled) playSweetChime();
+                     handleLogin();
+                  }}
+                  className="w-full p-3.5 bg-gradient-to-r from-pink-500 via-rose-500 to-[#f97316] text-white hover:opacity-95 text-xs font-black rounded-2xl shadow-lg transition-transform active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+               >
+                  <span>গুগল দিয়ে প্রবেশ করুন 🔐</span>
+               </button>
+               <span className="text-[8px] text-gray-450 dark:text-gray-500 text-center font-bold">
+                  * প্রবেশ করার মাধ্যমে আপনি হুমায়রা এআই-এর সকল পলিসি মেনে নিচ্ছেন।
+               </span>
+            </div>
          </div>
       ) : !completedOnboarding ? (
-         <div className="flex flex-col h-full bg-[#fdfdfd] dark:bg-[#0c0f18] animate-fade-in relative overflow-hidden select-none">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-105 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md">
-               <span className="text-[10px] uppercase tracking-widest font-black text-gray-400 dark:text-gray-550">অনবোর্ডিং সেটিংস</span>
-               <div className="flex gap-1.5">
-                  <div className={cn("w-4 h-1.2 rounded-full transition-all duration-300", onboardingStep === "avatar" ? "bg-[#f97316]" : "bg-gray-200 dark:bg-gray-800")} />
-                  <div className={cn("w-4 h-1.2 rounded-full transition-all duration-300", onboardingStep === "chatbotName" ? "bg-[#f97316]" : "bg-gray-200 dark:bg-gray-800")} />
-               </div>
-            </div>
-
+         <div className="flex flex-col h-full w-full bg-slate-50 dark:bg-slate-950 justify-between items-center relative select-none animate-fade-in p-2">
             {onboardingStep === "avatar" ? (
                <div className="flex flex-col flex-1 p-6 items-center">
                   <div className="w-14 h-14 rounded-2xl bg-orange-50 dark:bg-orange-950/20 flex items-center justify-center text-[22px] shadow-sm mb-4 mt-2">
@@ -1503,13 +1557,14 @@ export default function App() {
                      নিচের প্রিমিয়াম অবতারের যেকোনো একটি বেছে নিন যা পুরো অ্যাপ জুড়ে আপনার প্রোফাইল ছবি হিসেবে ব্যবহার করা হবে।
                   </p>
 
-                  <div className="grid grid-cols-2 gap-4 mt-8 w-full max-w-[240px] flex-1 max-h-[220px] overflow-y-auto pr-1">
+                  <div className="grid grid-cols-2 gap-4 mt-8 w-full max-w-[240px] flex-1 max-h-[220px] overflow-y-auto pr-1 animate-slide-up">
                      {firebaseUser?.photoURL && (
                         <button
                            onClick={() => setSelectedOnboardingPic(firebaseUser.photoURL || "")}
                            className={cn("relative h-20 rounded-2xl border-2 transition-all p-1.5 active:scale-95 shadow-sm overflow-hidden bg-white dark:bg-slate-900 cursor-pointer flex flex-col justify-center items-center gap-1",
                               selectedOnboardingPic === firebaseUser.photoURL ? "border-[#f97316] scale-105 shadow-md shadow-orange-500/10" : "border-slate-100 dark:border-slate-800/80 grayscale"
                            )}
+                           style={selectedOnboardingPic === firebaseUser.photoURL ? { borderColor: MODE_THEMES[mode].accent } : undefined}
                         >
                            <img src={firebaseUser.photoURL} className="w-10 h-10 object-cover rounded-full" referrerPolicy="no-referrer" />
                            <span className="text-[9px] font-black text-slate-755 dark:text-slate-300">গুগল ছবি</span>
@@ -1522,12 +1577,23 @@ export default function App() {
                            className={cn("h-20 rounded-2xl border-2 transition-all p-1.5 active:scale-95 shadow-sm overflow-hidden bg-white dark:bg-slate-900 cursor-pointer flex flex-col justify-center items-center gap-1",
                               selectedOnboardingPic === avat ? "border-[#f97316] scale-105 shadow-md shadow-orange-500/10" : "border-slate-100 dark:border-slate-800/80 hover:border-slate-205"
                            )}
+                           style={selectedOnboardingPic === avat ? { borderColor: MODE_THEMES[mode].accent } : undefined}
                         >
                            <img src={avat} className="w-10 h-10 object-cover rounded-full bg-slate-50 dark:bg-slate-855" />
                            <span className="text-[9px] font-black text-slate-755 dark:text-slate-300">অবতার #0{idx+1}</span>
                         </button>
                      ))}
                   </div>
+
+                  {!selectedOnboardingPic ? (
+                     <span className="text-[9px] font-black text-rose-500 animate-pulse mt-4 mb-2 bg-rose-500/5 px-2.5 py-1 rounded-full border border-rose-500/10">
+                        ⚠️ অনুগ্রহ করে একটি প্রোফাইল পিকচার সিলেক্ট করুন!
+                     </span>
+                  ) : (
+                     <span className="text-[9px] font-black text-green-500 animate-bounce mt-4 mb-2 bg-green-500/5 px-2.5 py-1 rounded-full border border-green-500/10">
+                        🌟 সিলেক্ট করা হয়েছে! পরবর্তী ধাপে যান
+                     </span>
+                  )}
 
                   <button
                      disabled={!selectedOnboardingPic}
@@ -1537,7 +1603,7 @@ export default function App() {
                      }}
                      className="w-full p-3.5 bg-gradient-to-r from-orange-500 to-[#f97316] hover:opacity-90 font-black text-xs text-white rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50 mt-auto mb-2"
                   >
-                     পরবর্তী ধাপ ➡️
+                     পরবর্তী ধাপে যান ➡️
                   </button>
                </div>
             ) : (
@@ -1545,22 +1611,49 @@ export default function App() {
                   <div className="w-14 h-14 rounded-2xl bg-pink-50 dark:bg-pink-950/20 flex items-center justify-center text-[22px] shadow-sm mb-4 mt-2">
                      🤖
                   </div>
-                  <h3 className="text-sm font-black text-slate-850 dark:text-white capitalize text-center mt-1">
-                     আপনার ভার্চুয়াল চ্যাটবটের একটি নাম দিন
+                  <h3 className="text-sm font-black text-slate-855 dark:text-white capitalize text-center mt-1">
+                     আপনার ও আপনার চ্যাটবটের নাম দিন
                   </h3>
                   <p className="text-[10px] text-gray-550 dark:text-gray-400 font-bold text-center mt-1.5 leading-relaxed px-2">
-                     হুমায়রা এআই-এর বদলে আপনি যে কোনো কিউট ইউনিক নাম দিতে পারেন, যা পুরো অ্যাপের ব্যাকএন্ডে রিয়েলটাইম সিঙ্ক্রোনাইজ হবে।
+                     অ্যাপে আপনাকে যে ডাকনামে সম্বোধন করা হবে এবং চ্যাটবটের হুমায়রা এআই-এর বদলে আপনি যে ইউনিক কিউট নাম ডাকতে চান তা দিন।
                   </p>
 
-                  <div className="flex flex-col gap-1.5 w-full max-w-[245px] mt-8">
-                     <label className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-1">চ্যাটবটের কাস্টম নাম</label>
-                     <input 
-                        type="text" 
-                        value={typedBotName} 
-                        onChange={(e) => setTypedBotName(e.target.value)} 
-                        className={cn("w-full rounded-2xl p-3.5 font-bold text-sm border focus:ring-2 focus:ring-[#f97316] outline-none transition-all leading-normal text-center shadow-sm", theme === "dark" ? "bg-slate-900 border-slate-800 text-white placeholder-slate-655" : "bg-white border-slate-200 text-gray-800")}
-                        placeholder="যেমন: হুমায়রা এআই, তিশা, রিয়া..."
-                     />
+                  <div className="flex flex-col gap-4 w-full max-w-[245px] mt-6 flex-1 overflow-y-auto no-scrollbar">
+                     {/* User's Own Nickname */}
+                     <div className="flex flex-col gap-1.5 animate-slide-up">
+                        <label className="text-[8.5px] font-black text-slate-400 dark:text-gray-500 uppercase tracking-widest pl-1 flex items-center justify-between">
+                           <span>আপনার নিজের নাম (Your Name)</span>
+                           {!typedUserName.trim() && <span className="text-red-500 text-[8px] font-bold">খালি রাখা যাবে না! *</span>}
+                        </label>
+                        <input 
+                           type="text" 
+                           value={typedUserName} 
+                           onChange={(e) => setTypedUserName(e.target.value)} 
+                           className={cn("w-full rounded-2xl p-3 font-bold text-xs border focus:ring-2 focus:ring-[#f97316] outline-none transition-all leading-normal text-center shadow-sm", 
+                              theme === "dark" ? "bg-slate-900 border-slate-800 text-white placeholder-slate-655" : "bg-white border-slate-200 text-gray-800"
+                           )}
+                           placeholder="যেমন: অয়ন, সিয়াম, আরিয়ান..."
+                           maxLength={30}
+                        />
+                     </div>
+
+                     {/* Chatbot Name */}
+                     <div className="flex flex-col gap-1.5 animate-slide-up">
+                        <label className="text-[8.5px] font-black text-slate-400 dark:text-gray-500 uppercase tracking-widest pl-1 flex items-center justify-between">
+                           <span>চ্যাটবটের কাস্টম নাম (AI Name)</span>
+                           {!typedBotName.trim() && <span className="text-red-500 text-[8px] font-bold">খালি রাখা যাবে না! *</span>}
+                        </label>
+                        <input 
+                           type="text" 
+                           value={typedBotName} 
+                           onChange={(e) => setTypedBotName(e.target.value)} 
+                           className={cn("w-full rounded-2xl p-3 font-bold text-xs border focus:ring-2 focus:ring-[#f97316] outline-none transition-all leading-normal text-center shadow-sm", 
+                              theme === "dark" ? "bg-slate-900 border-slate-800 text-white placeholder-slate-655" : "bg-white border-slate-200 text-gray-800"
+                           )}
+                           placeholder="যেমন: হুমায়রা এআই, তিশা, রিয়া..."
+                           maxLength={30}
+                        />
+                     </div>
                   </div>
 
                   <div className="flex gap-2 w-full mt-auto mb-2">
@@ -1574,14 +1667,14 @@ export default function App() {
                         ⬅️ ব্যাক
                      </button>
                      <button
-                        disabled={!typedBotName.trim()}
+                        disabled={!typedUserName.trim() || !typedBotName.trim()}
                         onClick={() => {
                            if (soundEnabled) playSweetChime();
                            handleCompleteOnboarding();
                         }}
                         className="flex-1 p-3.5 bg-gradient-to-r from-orange-500 to-[#f97316] text-white hover:opacity-90 font-black text-xs rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50 text-center"
                      >
-                        সম্পূর্ণ করুন ও প্রবেশ করুন 🎉
+                        🔑 সম্পূর্ণ করুন 🎉
                      </button>
                   </div>
                </div>
