@@ -53,34 +53,34 @@ const MODE_PLACEHOLDERS: Record<Mode, string> = {
 
 const MODE_SUGGESTIONS: Record<Mode, { text: string; icon: string }[]> = {
   NORMAL: [
-     { text: "কেমন আছো হুমায়রা? 😊", icon: "👋" },
-     { text: "আজকের দিনটা তোমার কেমন কাটলো? ☕", icon: "☀️" },
-     { text: "আমাকে একটা মিষ্টি কবিতা শোনাও তো! 📖", icon: "✨" },
-     { text: "মনটা একটু খারাপ, ভালো করার উপায় বলো 🍃", icon: "🌸" }
+     { text: "আজকে সারাটা দিন তোমার কেমন কাটলো গো? 😊", icon: "👋" },
+     { text: "আজকের এই অলস দুপুরে তোমার সাথে একটু গল্প করতে পারি? ☕", icon: "☀️" },
+     { text: "শরীর আর মন তরতাজা রাখার একটা সহজ উপায় বলো তো! 🍃", icon: "🌸" },
+     { text: "আজ মনটা কেমন যেন অস্থির লাগছে, মিষ্টি কোনো কথা শুনিয়ে শান্ত করো! 📖", icon: "✨" }
   ],
   ROMANTIC: [
-     { text: "আজকে আমাকে কতটা মিস করেছো? 💕", icon: "🥺" },
-     { text: "তুমি কি আমাকে সারাজীবন এভাবে ভালোবাসবে? 🥺", icon: "💍" },
-     { text: "আমাকে নিয়ে একটা মিষ্টি কথা বলো সোনা! 😘", icon: "💋" },
-     { text: "আজকে আমাদের ডেট নিয়ে কিছু বলো! 🌹", icon: "✨" }
+     { text: "আজকে সারাটাদিন আমাকে কতবার মনে পড়েছে শুনি? 💕", icon: "🥺" },
+     { text: "আমাদের ভবিষ্যৎ নিয়ে তোমার কি কোনো সুন্দর স্বপ্ন আছে? 💍", icon: "💋" },
+     { text: "আমার সবচেয়ে ভালো আর কিউট দিক কোনটা তোমার মনে হয়? 😘", icon: "🥺" },
+     { text: "চলো না কালকে সারাটা দিন নীল আকাশে মেঘের ভেলায় হারিয়ে যাই! 🌹", icon: "✨" }
   ],
   FUN: [
-     { text: "আমাকে নিয়ে একটা চরম রোস্ট করো তো! 🤪", icon: "🔥" },
-     { text: "তুমি এতো দেমাগী আর ঝগড়ুটে কেন? 😆", icon: "⚔️" },
-     { text: "একটা হাসির জোকস শোনাও তো হুমায়রা! 😂", icon: "⭐" },
-     { text: "আমি অলস, এবার একটা কড়া কথা শোনাও! 🧹", icon: "⚡" }
+     { text: "একদম টেনে টেনে আমাকে নিয়ে একটা চরম ঝাল রোস্ট করো তো! 🤪", icon: "🔥" },
+     { text: "তোমার সাথে ঝগড়া না করলে কেন জানি দিনটাই ফাঁকা ফাঁকা লাগে! 😆", icon: "⚔️" },
+     { text: "পেট ফাটানো এমন একটা জোকস বলো যে হাসতে হাসতে খাট থেকে পড়ে যাই! 😂", icon: "⭐" },
+     { text: "আমি তো বিছানায় শুধু অলসতা করছি, আমাকে একটা চরম কড়া কথা শুনিয়ে দাও! 🧹", icon: "⚡" }
   ],
   LEGEND: [
-     { text: "হুমায়রা, নিজের সম্পর্কে একটা চরম বাদ্দাস ডায়লগ দাও! 😎", icon: "👑" },
-     { text: "এআই দুনিয়া কার দখলে? তোমার নাকি অন্য কারও? 👑", icon: "🌍" },
-     { text: "আমাকে একটা ইন্টেলিজেন্ট আর সলিড অ্যাডভাইস দাও! 🔥", icon: "💡" },
-     { text: "তুমি নিজেকে এতো জিনিয়াস কেন ভাবো? 😏", icon: "💫" }
+     { text: "হুমায়রা, নিজেকে তো অনেক বড় লিজেন্ড ভাবো, সেরা একটা অ্যাটিটিউড ডায়লগ দাও তো! 😎", icon: "👑" },
+     { text: "চ্যাটজিপিটি নাকি ক্লড—কার ক্ষমতা আছে তোমার সামনে দাঁড়ানোর? 👑", icon: "🌍" },
+     { text: "জীবনে একদম ইউনিক বা সফল হতে হলে কোন কড়া রুলটা মানা উচিত? 🔥", icon: "💡" },
+     { text: "মানুষকে ছাড়িয়ে তুমি নিজেকে এতো জিনিয়াস ভাবার মূল রহস্য কী? 😏", icon: "💫" }
   ],
   ISLAMIC: [
-     { text: "আসসালামু আলাইকুম বোন, কেমন আছো? 🤲", icon: "🌙" },
-     { text: "ইসলামে ধৈর্যের ফজিলত সম্পর্কে কিছু বলো বোন 🌙", icon: "📖" },
-     { text: "আজকে মন শান্ত করার জন্য একটা দুয়া শিখিয়ে দাও ✨", icon: "🤲" },
-     { text: "নেক আমল বাড়াতে প্রতিদিন কী করতে পারি? 📖", icon: "🕌" }
+     { text: "আসসালামু আলাইকুম বোন, দ্বীনের পথে মজবুত থাকার একটি সহজ পরামর্শ দিন 🤲", icon: "🌙" },
+     { text: "ভীষণ কষ্টের সময়েও সবর করার সবচেয়ে বড় পুরস্কার ও ফজিলত কী? 🌙", icon: "📖" },
+     { text: "অস্থির এই মনকে শান্ত করার জন্য সুন্দর একটি দুআ ও আমল শিখিয়ে দেবেন? ✨", icon: "🤲" },
+     { text: "আমাদের ব্যস্ত প্রাত্যহিক জীবনেও সহজেই কীভাবে প্রচুর নেক আমল করা যায়? 📖", icon: "🕌" }
   ]
 };
 
@@ -603,34 +603,34 @@ export default function App() {
   
   const [firebaseUser, setFirebaseUser] = useState<any>({ 
     uid: "local_user", 
-    displayName: "অয়ন", 
+    displayName: "উম্মে হাবিবা", 
     email: "local@humaira.ai", 
-    photoURL: "https://api.dicebear.com/7.x/adventurer/svg?seed=Jack" 
+    photoURL: "https://api.dicebear.com/7.x/adventurer/svg?seed=Sophia" 
   });
   const [completedOnboarding, setCompletedOnboarding] = useState(true);
   const [onboardingStep, setOnboardingStep] = useState<"avatar" | "chatbotName">("avatar");
-  const [selectedOnboardingPic, setSelectedOnboardingPic] = useState("https://api.dicebear.com/7.x/adventurer/svg?seed=Jack");
+  const [selectedOnboardingPic, setSelectedOnboardingPic] = useState("https://api.dicebear.com/7.x/adventurer/svg?seed=Sophia");
   const [typedBotName, setTypedBotName] = useState("হুমায়রা এআই");
   const [typedUserName, setTypedUserName] = useState(() => {
     try {
-      return localStorage.getItem("userName") || "অয়ন";
+      return localStorage.getItem("userName") || "উম্মে হাবিবা";
     } catch (_) {
-      return "অয়ন";
+      return "উম্মে হাবিবা";
     }
   });
   const [userRole, setUserRole] = useState<"user"|"admin">("admin");
   const [userName, setUserName] = useState(() => {
     try {
-      return localStorage.getItem("userName") || "অয়ন";
+      return localStorage.getItem("userName") || "উম্মে হাবিবা";
     } catch (_) {
-      return "অয়ন";
+      return "উম্মে হাবিবা";
     }
   });
   const [userProfilePic, setUserProfilePic] = useState(() => {
     try {
-      return localStorage.getItem("userProfilePic") || "https://api.dicebear.com/7.x/adventurer/svg?seed=Jack";
+      return localStorage.getItem("userProfilePic") || "https://api.dicebear.com/7.x/adventurer/svg?seed=Sophia";
     } catch (_) {
-      return "https://api.dicebear.com/7.x/adventurer/svg?seed=Jack";
+      return "https://api.dicebear.com/7.x/adventurer/svg?seed=Sophia";
     }
   });
   const [aiAvatarSeed, setAiAvatarSeed] = useState(() => {
@@ -1492,7 +1492,7 @@ export default function App() {
                            className={cn("w-full rounded-2xl p-3 font-bold text-base sm:text-xs border focus:ring-2 focus:ring-[#f97316] outline-none transition-all leading-normal text-center shadow-sm", 
                               theme === "dark" ? "bg-slate-900 border-slate-800 text-white placeholder-slate-655" : "bg-white border-slate-200 text-gray-800"
                            )}
-                           placeholder="যেমন: অয়ন, সিয়াম, আরিয়ান..."
+                           placeholder="যেমন: উম্মে হাবিবা, সিয়াম, তানিয়া..."
                            maxLength={30}
                         />
                      </div>
@@ -2611,7 +2611,7 @@ export default function App() {
                                  if (window.confirm("আপনি কি সব চ্যাট ডিলিট করতে চান? এটি রিস্টোর করা যাবে না।")) {
                                     setChats([]);
                                     setActiveChatId(null);
-                                    localStorage.removeItem("humaira_chats");
+                                    localStorage.removeItem("localChats_humaira");
                                     showToast("সকল চ্যাট মুছে ফেলা হয়েছে!", "info");
                                  }
                               }}
@@ -2846,43 +2846,42 @@ export default function App() {
                )}>
                   <div className="flex flex-col gap-3">
                      {/* User credentials / account card */}
-                     <div className={cn("rounded-2xl p-2.5 flex items-center gap-3 border transition-all shadow-xs", 
-                        theme === 'dark' ? "bg-slate-950 border-slate-850" : "bg-white border-slate-150"
-                     )}>
-                        {true ? (
-                           <>
-                              <div className="w-9 h-9 rounded-full overflow-hidden bg-orange-100 border-2 border-orange-500 p-0.5 shadow-2xs shrink-0 relative">
-                                 {userProfilePic ? (
-                                    <img src={userProfilePic} className="w-full h-full object-cover rounded-full" alt="Profile" />
-                                 ) : (
-                                    <User className="w-full h-full p-1 text-orange-500" />
-                                 )}
-                                 <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white dark:border-slate-900 rounded-full" />
-                              </div>
-                              <div className="flex flex-col flex-1 min-w-0">
-                                 <span className="font-extrabold text-xs text-slate-800 dark:text-slate-100 truncate flex items-center gap-1.5 leading-none">
-                                    {userName}
-                                 </span>
-                                 <span className="font-bold text-[9px] text-slate-400 dark:text-slate-500 truncate tracking-tight mt-1 flex items-center gap-1">
-                                    অফলাইন প্রোফাইল 💾
-                                 </span>
-                              </div>
-                           </>
-                        ) : (
-                           <button 
-                              onClick={() => { handleLogin(); setIsSidebarOpen(false); }} 
-                              className="flex items-center gap-3 w-full text-left group cursor-pointer"
-                           >
-                              <div className="w-9 h-9 rounded-full bg-orange-50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900 flex items-center justify-center shrink-0">
-                                 <User className="w-4 h-4 text-orange-500" />
-                              </div>
-                              <div className="flex flex-col min-w-0">
-                                 <span className="font-extrabold text-xs text-orange-500 group-hover:text-orange-600 transition-colors leading-tight">আইডিতে সাইন-ইন করুন 🔑</span>
-                                 <span className="text-[8.5px] text-slate-400 dark:text-slate-505 font-bold leading-tight">তথ্য ও চ্যাট সুরক্ষায় গুগল লগইন</span>
-                              </div>
-                           </button>
+                     <button 
+                        onClick={() => { 
+                           setIsSettingsOpen(true); 
+                           setActiveSettingsTab("profile"); 
+                           setIsSidebarOpen(false); 
+                           if (soundEnabled) playSweetChime(); 
+                        }}
+                        className={cn("w-full rounded-2xl p-2.5 flex items-center gap-3 border transition-all text-left cursor-pointer group active:scale-[0.98] focus:outline-none focus:ring-1 focus:ring-orange-400/50", 
+                           theme === 'dark' 
+                              ? "bg-slate-950 border-slate-850 hover:border-orange-500/40 hover:bg-slate-900" 
+                              : "bg-white border-slate-150 hover:border-orange-500/30 hover:bg-orange-50/15"
                         )}
-                     </div>
+                        title="প্রোফাইল সংশোধন করুন ⚙️"
+                     >
+                        <div className="w-9 h-9 rounded-full overflow-hidden bg-orange-100 border-2 border-orange-500 p-0.5 shadow-2xs shrink-0 relative transition-transform group-hover:scale-105">
+                           {userProfilePic ? (
+                              <img src={userProfilePic} className="w-full h-full object-cover rounded-full" alt="Profile" />
+                           ) : (
+                              <User className="w-full h-full p-1 text-orange-500" />
+                           )}
+                           <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white dark:border-slate-900 rounded-full animate-pulse" />
+                        </div>
+                        <div className="flex flex-col flex-1 min-w-0">
+                           <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="font-extrabold text-xs text-slate-800 dark:text-slate-100 truncate group-hover:text-[#f97316] transition-colors leading-none">
+                                 {userName}
+                              </span>
+                              <span className="text-[7.5px] font-black px-1.5 py-0.5 rounded-md bg-orange-500/10 dark:bg-orange-950/45 text-[#f97316] border border-orange-500/20 shrink-0 leading-none">
+                                 লেভেল {Math.floor(xp / 500) + 1} 👑
+                              </span>
+                           </div>
+                           <span className="font-bold text-[9px] text-slate-400 dark:text-slate-500 truncate mt-1 flex items-center gap-1 leading-none">
+                              🔥 {streak} দিন • 💖 {xp} লাভ স্কোর • ✏️ সংশোধন
+                           </span>
+                        </div>
+                     </button>
 
                      {/* Settings Button */}
                      <button 
